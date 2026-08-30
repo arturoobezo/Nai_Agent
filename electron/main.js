@@ -90,10 +90,14 @@ function startLocalPreviewServer() {
       }
 
       let targetFilePath = '';
+      const cleanRelPath = reqPath.replace(/^[/\\]+/, '');
+
       if (queryFullPath && fs.existsSync(queryFullPath)) {
         targetFilePath = queryFullPath;
-      } else if (activeServerRoot) {
-        targetFilePath = path.join(activeServerRoot, reqPath);
+      } else if (activeServerRoot && fs.existsSync(path.join(activeServerRoot, cleanRelPath))) {
+        targetFilePath = path.join(activeServerRoot, cleanRelPath);
+      } else if (activeServerRoot && fs.existsSync(path.join(activeServerRoot, fileName))) {
+        targetFilePath = path.join(activeServerRoot, fileName);
       } else if (fs.existsSync(reqPath)) {
         targetFilePath = reqPath;
       }
@@ -1012,7 +1016,7 @@ ipcMain.handle('sandbox:update', async (event, { html, css, js, fullContent, bas
         memoryOverrideFile = { name: '', content: '' };
       }
 
-      const localHttpUrl = `http://127.0.0.1:${localServerPort}/${encodeURIComponent(fileName)}?t=${Date.now()}`;
+      const localHttpUrl = `http://127.0.0.1:${localServerPort}/${encodeURIComponent(fileName)}?fullPath=${encodeURIComponent(filePath)}&t=${Date.now()}`;
       return {
         success: true,
         url: localHttpUrl,
