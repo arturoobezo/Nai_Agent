@@ -2,6 +2,8 @@ name: Build Cross-Platform Installers
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
