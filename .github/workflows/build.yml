@@ -18,8 +18,6 @@ jobs:
             platform: windows
           - os: macos-latest
             platform: macos
-          - os: ubuntu-22.04
-            platform: linux
 
     steps:
       - name: Checkout Repository
@@ -30,12 +28,6 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-
-      - name: Install System Dependencies (Linux)
-        if: matrix.platform == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libarchive-tools libfuse2 desktop-file-utils
 
       - name: Install NPM Dependencies
         run: npm ci || npm install
@@ -50,10 +42,6 @@ jobs:
       - name: Build Desktop App (macOS)
         if: matrix.platform == 'macos'
         run: npx electron-builder --mac --publish never
-
-      - name: Build Desktop App (Linux)
-        if: matrix.platform == 'linux'
-        run: npx electron-builder --linux --publish never
 
       - name: Upload Windows Installer
         if: matrix.platform == 'windows'
@@ -71,14 +59,4 @@ jobs:
           path: |
             release/*.dmg
             release/*.zip
-          if-no-files-found: error
-
-      - name: Upload Linux Installer
-        if: matrix.platform == 'linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Nai-Agent-Linux-Installer
-          path: |
-            release/*.AppImage
-            release/*.deb
           if-no-files-found: error

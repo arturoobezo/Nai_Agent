@@ -66,24 +66,6 @@
       "icon": "public/logo.png",
       "category": "public.app-category.productivity",
       "identity": null
-    },
-    "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "deb",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "public/logo.png",
-      "category": "Utility"
     }
   },
   "dependencies": {
