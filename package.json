@@ -63,7 +63,7 @@
           ]
         }
       ],
-      "icon": "public/icono.ico",
+      "icon": "public/logo.png",
       "category": "public.app-category.productivity",
       "identity": null
     },
@@ -82,7 +82,7 @@
           ]
         }
       ],
-      "icon": "public/icono.ico",
+      "icon": "public/logo.png",
       "category": "Utility"
     }
   },

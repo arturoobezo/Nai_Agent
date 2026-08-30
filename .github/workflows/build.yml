@@ -11,6 +11,7 @@ jobs:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
 
@@ -28,7 +29,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libarchive-tools libfuse2
+          sudo apt-get install -y libarchive-tools libfuse2 || sudo apt-get install -y libarchive-tools libfuse2t64 || true
 
       - name: Install NPM Dependencies
         run: npm ci || npm install
@@ -36,8 +37,17 @@ jobs:
       - name: Build Web Frontend (Vite)
         run: npm run build
 
-      - name: Build Desktop Application (Electron Builder)
-        run: npx electron-builder --publish never
+      - name: Build Desktop App (Windows)
+        if: runner.os == 'Windows'
+        run: npx electron-builder --win --publish never
+
+      - name: Build Desktop App (macOS)
+        if: runner.os == 'macOS'
+        run: npx electron-builder --mac --publish never
+
+      - name: Build Desktop App (Linux)
+        if: runner.os == 'Linux'
+        run: npx electron-builder --linux --publish never
 
       - name: Upload Windows Installer
         if: runner.os == 'Windows'
