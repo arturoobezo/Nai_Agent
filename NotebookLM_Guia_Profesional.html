@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotebookLM - Guía Profesional para YouTube</title>
+  <!-- Tailwind CSS & Google Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <style>
+    @media print {
+      body {
+        background: white !important;
+        color: #1f2937 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .page-break {
+        page-break-after: always;
+        break-after: page;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+    @page {
+      size: letter;
+      margin: 0;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .heading-font {
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .page-sheet {
+      width: 8.5in;
+      min-height: 11in;
+      margin: 0 auto 2rem auto;
+      background: white;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      position: relative;
+      display: flex;
+      flex-col: column;
+    }
+    @media print {
+      .page-sheet {
+        box-shadow: none !important;
+        margin: 0 !important;
+        width: 100% !important;
+        min-height: 100vh !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-800 p-0 md:p-8 antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Floating Action Bar for Web Preview -->
+  <div class="no-print sticky top-4 z-50 max-w-xl mx-auto mb-6 bg-slate-950/90 border border-slate-700/80 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex items-center justify-between text-xs text-white">
+    <div class="flex items-center gap-2">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span class="font-semibold text-slate-200">Documento listo para previsualizar y exportar</span>
+    </div>
+    <button onclick="window.print()" class="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-1.5">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+      <span>Imprimir / Guardar PDF</span>
+    </button>
+  </div>
+
+  <!-- ==================== PÁGINA 1: PORTADA ==================== -->
+  <div class="page-sheet page-break flex flex-col justify-between overflow-hidden relative bg-gradient-to-br from-[#1a73e8] via-[#1557b0] to-[#0d47a1] text-white p-14">
+    <!-- Background Accents -->
+    <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/5 blur-2xl"></div>
+    <div class="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-amber-400/10 blur-2xl"></div>
+
+    <!-- Header Tag -->
+    <div class="flex items-center justify-between z-10">
+      <div class="flex items-center gap-2">
+        <span class="px-3 py-1 bg-white/15 border border-white/20 rounded-full text-xs font-semibold tracking-wider uppercase backdrop-blur-sm">
+          Google NotebookLM
+        </span>
+      </div>
+      <span class="px-3 py-1 bg-amber-400 text-slate-950 font-bold rounded-full text-xs shadow-md">
+        Edición 2025
+      </span>
+    </div>
+
+    <!-- Cover Content -->
+    <div class="my-auto text-center z-10 space-y-6">
+      <div class="inline-flex p-4 rounded-3xl bg-white/10 border border-white/20 shadow-2xl mb-2 backdrop-blur-md">
+        <svg class="w-16 h-16 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        </svg>
+      </div>
+
+      <h1 class="heading-font text-5xl md:text-6xl font-extrabold tracking-tight text-white leading-none">
+        NOTEBOOKLM
+      </h1>
+
+      <p class="text-2xl font-light text-blue-100 max-w-xl mx-auto leading-snug">
+        La Herramienta IA que Transformará tu Canal de YouTube
+      </p>
+
+      <div class="w-24 h-1.5 bg-amber-400 mx-auto rounded-full shadow-sm"></div>
+
+      <p class="text-sm text-blue-200 font-medium tracking-wide max-w-md mx-auto">
+        Funciones Clave + Casos de Uso Reales para Creadores de Contenido
+      </p>
+    </div>
+
+    <!-- Cover Footer -->
+    <div class="pt-6 border-t border-white/20 flex items-center justify-between text-xs text-blue-200 z-10">
+      <span>Tutorial YouTube • Edición 2025</span>
+      <span>notebooklm.google.com</span>
+    </div>
+
+    <!-- Tricolor Bottom Stripe -->
+    <div class="absolute bottom-0 left-0 right-0 h-3 flex">
+      <div class="flex-1 bg-[#0f9d58]"></div>
+      <div class="flex-1 bg-[#f9ab00]"></div>
+      <div class="flex-1 bg-[#ea4335]"></div>
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 2: ÍNDICE & INTRODUCCIÓN ==================== -->
+  <div class="page-sheet page-break flex flex-col justify-between p-12 bg-white text-slate-800">
+    <div>
+      <!-- Page Top Header -->
+      <div class="flex items-center justify-between pb-3 border-b-2 border-[#1a73e8] mb-8">
+        <span class="heading-font font-bold text-xs tracking-wider text-[#1a73e8] uppercase">NotebookLM Guía Profesional</span>
+        <span class="text-xs text-slate-400 font-mono">Pág. 2</span>
+      </div>
+
+      <!-- Section Title -->
+      <h2 class="heading-font text-2xl font-bold text-[#1a73e8] mb-1 flex items-center gap-2">
+        <span>📑 Contenido de la Guía</span>
+      </h2>
+      <div class="w-16 h-1 bg-[#f9ab00] mb-6 rounded-full"></div>
+
+      <!-- Index Cards -->
+      <div class="grid grid-cols-1 gap-3 mb-10">
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-[#1a73e8] text-white font-bold flex items-center justify-center text-xs">01</span>
+            <span class="font-semibold text-slate-800 text-sm">Introducción a NotebookLM</span>
+          </div>
+          <span class="text-xs font-mono text-slate-500 font-semibold">Pág. 3</span>
+        </div>
+
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-[#0f9d58] text-white font-bold flex items-center justify-center text-xs">02</span>
+            <span class="font-semibold text-slate-800 text-sm">Las 3 Funciones Principales</span>
+          </div>
+          <span class="text-xs font-mono text-slate-500 font-semibold">Pág. 4</span>
+        </div>
+
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-[#f9ab00] text-slate-900 font-bold flex items-center justify-center text-xs">03</span>
+            <span class="font-semibold text-slate-800 text-sm">Casos de Uso Reales para Creadores</span>
+          </div>
+          <span class="text-xs font-mono text-slate-500 font-semibold">Pág. 5</span>
+        </div>
+
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">04</span>
+            <span class="font-semibold text-slate-800 text-sm">Conclusión y Tips Profesionales</span>
+          </div>
+          <span class="text-xs font-mono text-slate-500 font-semibold">Pág. 6</span>
+        </div>
+      </div>
+
+      <!-- Highlight Quote -->
+      <div class="p-6 rounded-2xl bg-blue-50/80 border-l-4 border-[#1a73e8] my-6">
+        <p class="italic text-slate-700 text-sm leading-relaxed text-center font-medium">
+          "La IA no reemplazará a los creadores de contenido, pero los creadores que dominen la IA reemplazarán rápidamente a los que no la utilicen."
+        </p>
+      </div>
+    </div>
+
+    <!-- Page Footer -->
+    <div class="pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-400">
+      <span>Tutorial YouTube • Edición 2025</span>
+      <span class="font-mono">— 2 —</span>
+      <span>notebooklm.google.com</span>
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 3: FUNCIONES PRINCIPALES ==================== -->
+  <div class="page-sheet page-break flex flex-col justify-between p-12 bg-white text-slate-800">
+    <div>
+      <div class="flex items-center justify-between pb-3 border-b-2 border-[#1a73e8] mb-8">
+        <span class="heading-font font-bold text-xs tracking-wider text-[#1a73e8] uppercase">NotebookLM Guía Profesional</span>
+        <span class="text-xs text-slate-400 font-mono">Pág. 3</span>
+      </div>
+
+      <h2 class="heading-font text-2xl font-bold text-[#1a73e8] mb-1">
+        🚀 Las 3 Funciones Principales
+      </h2>
+      <div class="w-16 h-1 bg-[#f9ab00] mb-6 rounded-full"></div>
+
+      <!-- Feature 1 -->
+      <div class="mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="px-2.5 py-0.5 rounded-full bg-blue-600 text-white font-bold text-xs font-mono">01</span>
+          <h3 class="font-bold text-slate-900 text-base">Subir y Analizar Múltiples Fuentes</h3>
+        </div>
+        <p class="text-xs text-slate-600 leading-relaxed mb-3">
+          Permite cargar hasta <strong>50 documentos simultáneos</strong> (PDFs, Google Docs, Slides, páginas web y videos de YouTube). La IA responde preguntas exclusivamente basándose en tus fuentes, citando el párrafo exacto y eliminando las alucinaciones.
+        </p>
+        <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-700 font-medium">
+          <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Hasta 500,000 palabras por libreta</div>
+          <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Citas textuales directas y verificables</div>
+        </div>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white font-bold text-xs font-mono">02</span>
+          <h3 class="font-bold text-slate-900 text-base">Resúmenes Inteligentes Estructurados</h3>
+        </div>
+        <p class="text-xs text-slate-600 leading-relaxed mb-3">
+          Genera automáticamente guías de estudio, documentos de preguntas frecuentes (FAQ), briefs informativos y líneas de tiempo cronológicas a partir de textos extensos con un solo clic.
+        </p>
+        <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-700 font-medium">
+          <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Guías de estudio instantáneas</div>
+          <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Líneas de tiempo automáticas</div>
+        </div>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-bold text-xs font-mono">03</span>
+          <h3 class="font-bold text-slate-900 text-base">Audio Overview (Resumen en Podcast IA)</h3>
+        </div>
+        <p class="text-xs text-slate-600 leading-relaxed mb-3">
+          Convierte todas tus notas y lecturas en una conversación de audio entre dos presentadores de IA. Es dinámico, entretenido, descargable en MP3 y perfecto para estructurar guiones de YouTube.
+        </p>
+        <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-700 font-medium">
+          <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Conversación fluida con dos voces</div>
+          <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Descarga directa en archivo MP3</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-400">
+      <span>Tutorial YouTube • Edición 2025</span>
+      <span class="font-mono">— 3 —</span>
+      <span>notebooklm.google.com</span>
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 4: CASOS DE USO Y CONCLUSIÓN ==================== -->
+  <div class="page-sheet flex flex-col justify-between p-12 bg-white text-slate-800">
+    <div>
+      <div class="flex items-center justify-between pb-3 border-b-2 border-[#1a73e8] mb-8">
+        <span class="heading-font font-bold text-xs tracking-wider text-[#1a73e8] uppercase">NotebookLM Guía Profesional</span>
+        <span class="text-xs text-slate-400 font-mono">Pág. 4</span>
+      </div>
+
+      <h2 class="heading-font text-2xl font-bold text-[#1a73e8] mb-1">
+        🎬 Casos de Uso para Creadores de YouTube
+      </h2>
+      <div class="w-16 h-1 bg-[#f9ab00] mb-6 rounded-full"></div>
+
+      <!-- Case 1 Table -->
+      <div class="mb-5 rounded-xl border border-slate-200 overflow-hidden text-xs">
+        <div class="bg-blue-600 text-white font-bold p-2.5 flex items-center justify-between">
+          <span>Caso 1: Reseña de Libros en Minutos</span>
+          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded">Ahorro: 6+ horas</span>
+        </div>
+        <div class="p-3 bg-slate-50 space-y-1 text-slate-700">
+          <p><strong>Escenario:</strong> Quieres reseñar un libro de 300 páginas con citas exactas.</p>
+          <p><strong>Acción:</strong> Sube el PDF a NotebookLM, genera el FAQ de ideas clave y escucha el Audio Overview para captar los ganchos principales.</p>
+        </div>
+      </div>
+
+      <!-- Case 2 Table -->
+      <div class="mb-5 rounded-xl border border-slate-200 overflow-hidden text-xs">
+        <div class="bg-emerald-600 text-white font-bold p-2.5 flex items-center justify-between">
+          <span>Caso 2: Investigación Académica y Documentales</span>
+          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded">Cero Alucinaciones</span>
+        </div>
+        <div class="p-3 bg-slate-50 space-y-1 text-slate-700">
+          <p><strong>Escenario:</strong> Cruzar 10 artículos, papers y videos para un video educativo.</p>
+          <p><strong>Acción:</strong> Pregunta directamente sobre contradicciones o datos específicos entre autores y obtén citas con número de página.</p>
+        </div>
+      </div>
+
+      <!-- Tips Box -->
+      <div class="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-950 my-6">
+        <h4 class="font-bold text-sm mb-2 text-amber-900 flex items-center gap-1.5">
+          <span>💡 Tips de Oro para tu Video Tutorial:</span>
+        </h4>
+        <ul class="space-y-1.5 list-disc pl-4">
+          <li>Muestra en pantalla la función de Audio Overview (es la más viral y atractiva).</li>
+          <li>Enfatiza que la versión básica es <strong>100% gratuita</strong> con cuenta de Google.</li>
+          <li>Coloca el enlace oficial <code>notebooklm.google.com</code> en la descripción de tu video.</li>
+        </ul>
+      </div>
+
+      <!-- CTA Box -->
+      <div class="p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-center shadow-lg">
+        <h4 class="font-bold text-sm">🚀 ¡Empieza a usar NotebookLM y revoluciona tu flujo creativo!</h4>
+        <p class="text-xs text-blue-100 mt-1">Gratis • Sin tarjeta • Directo en la nube de Google</p>
+      </div>
+    </div>
+
+    <div class="pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-400">
+      <span>Tutorial YouTube • Edición 2025</span>
+      <span class="font-mono">— 4 —</span>
+      <span>notebooklm.google.com</span>
+    </div>
+  </div>
+
+</body>
+</html>

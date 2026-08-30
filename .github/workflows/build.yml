@@ -1,0 +1,68 @@
+name: Build Cross-Platform Installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools libfuse2
+
+      - name: Install NPM Dependencies
+        run: npm ci || npm install
+
+      - name: Build Web Frontend (Vite)
+        run: npm run build
+
+      - name: Build Desktop Application (Electron Builder)
+        run: npx electron-builder --publish never
+
+      - name: Upload Windows Installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nai-Agent-Windows-Installer
+          path: release/*.exe
+          if-no-files-found: error
+
+      - name: Upload macOS Installer
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nai-Agent-macOS-Installer
+          path: |
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: error
+
+      - name: Upload Linux Installer
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nai-Agent-Linux-Installer
+          path: |
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
