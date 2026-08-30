@@ -1,12 +1,11 @@
-# 🚀 Nai Agent - Workspace de Inteligencia Artificial & Agente Autónomo
+# 🤖 Nai Agent - Tu Asistente y Agente de IA Autónomo para Escritorio
 
 <p align="center">
   <img src="public/logo.png" alt="Nai Agent Logo" width="128" height="128" style="border-radius: 24px;" />
 </p>
 
 <p align="center">
-  <strong>Un entorno de trabajo de escritorio inteligente para desarrolladores, creadores y entusiastas de la IA.</strong><br>
-  Inferencia local de imágenes con Krea 2 Turbo, ejecución de código en vivo (Sandbox), soporte para múltiples LLMs y herramientas multimedia nativas.
+  <strong>Un espacio de trabajo impulsado por IA con capacidades completas de agente autónomo: manipulación y creación de archivos, análisis de documentos, audio y video, ejecución de código, integraciones y generación multimedia.</strong>
 </p>
 
 <p align="center">
@@ -14,125 +13,134 @@
   <img src="https://img.shields.io/badge/Electron-34.5-green?style=flat-square&logo=electron" alt="Electron" />
   <img src="https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Vite-6.2-646CFF?style=flat-square&logo=vite" alt="Vite" />
-  <img src="https://img.shields.io/badge/Image_AI-Krea_2_Turbo-purple?style=flat-square" alt="Krea 2 Turbo" />
+  <img src="https://img.shields.io/badge/AI_Engine-Multi--Provider-orange?style=flat-square" alt="Multi-Provider" />
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" />
 </p>
 
 ---
 
-## 🌟 Características Principales
+## ⚡ ¿Qué es Nai Agent?
 
-### 🎨 1. Generador de Imágenes de Alta Fidelidad (Krea 2 Turbo)
-- **Generación Local con GPU**: Soporte para modelos GGUF optimizados (`Krea-2-Turbo-Q4_K_M.gguf` y `Qwen 3 4B`).
-- **Aspect Ratios Nativos**: Generación sin distorsiones en `16:9` (1280x768), `9:16` (768x1280), `1:1` (1024x1024), `4:3`, `3:4` alineados a múltiplos de 64 píxeles.
-- **Generación en Lote**: Produce de 1 a 4 imágenes con parámetros de calidad y semillas estocásticas independientes.
-- **Menú de Acción Rápida**: Abre la imagen generada en el visor de tu sistema, descárgala o copia su ruta con un clic.
+**Nai Agent** no es solo un chat con IA: es un **agente autónomo de escritorio con acceso a tu espacio de trabajo local**. Puede leer, entender, crear y modificar archivos de todo tipo, analizar imágenes, documentos y videos, transcribir audios, ejecutar y previsualizar código en vivo, automatizar tareas multimedia y generar imágenes en alta calidad.
 
-### 🤖 2. Conectividad con Proveedores de IA (LLMs)
-Nai Agent te permite conectar prácticamente cualquier proveedor local o en la nube:
-- 🦙 **Ollama** (Modelos locales 100% privados: Llama 3, DeepSeek, Qwen, Mistral, Gemma).
-- 🧪 **LM Studio / vLLM / TextGen WebUI** (Servidores locales compatibles con OpenAI API).
-- 🌐 **OpenRouter** (Acceso a cientos de modelos: Claude 3.7 Sonnet, DeepSeek R1, GPT-4o, Llama 3.3).
-- ⚡ **Groq** (Inferencia ultra rápida en la nube).
-- 🧠 **OpenAI / Anthropic / Google Gemini / Mistral AI**.
+---
 
-### 💻 3. Sandbox de Código en Tiempo Real
-- Previsualizador interactivo para proyectos web (HTML, CSS, JavaScript, React, Tailwind).
-- Editor de código integrado con explorador de archivos completo.
-- Exportación directa de reportes y documentos a formato **PDF**.
+## 🎯 Capacidades y Funcionalidades del Agente
 
-### 🎬 4. Herramientas Multimedia Nativas
-- **Transcripción de Audio y Video**: Whisper local para convertir voz a texto.
-- **Generación y Traducción de Subtítulos**: Creación automática de archivos `.srt` y traducción instantánea.
-- **Edición Rápida con FFmpeg**: Unión y recorte de videos directamente desde el chat.
+### 🗂️ 1. Gestión Autónoma del Espacio de Trabajo y Archivos
+* **Creación y Modificación de Archivos**: Crea código, scripts, documentos Markdown, configuraciones JSON, etc., directamente en tu carpeta de proyecto.
+* **Organización del Proyecto**: Renombra, mueve, crea carpetas o elimina archivos obsoletos según las instrucciones que le des.
+* **Lectura y Contexto Completo**: Lee automáticamente el contenido de los archivos de tu proyecto para ayudarte a programar, depurar o redactar con contexto real.
+
+---
+
+### 📄 2. Análisis Multimodal de Documentos, Imágenes y Videos
+* **Lectura Profunda de PDFs**: Extrae y analiza informes, manuales y libros PDF de múltiples páginas para responder preguntas o generar resúmenes.
+* **Visión por Computadora**: Analiza capturas de pantalla, diagramas e imágenes que adjuntes al chat.
+* **Inspección de Archivos Multimedia**: Reconoce formatos de video y audio en tu carpeta para procesarlos automáticamente.
+
+---
+
+### 🎙️ 3. Transcripción y Automatización Multimedia
+* **Transcripción de Voz / Video a Texto**: Reconocimiento de voz local con modelos Whisper integrados.
+* **Generación de Subtítulos (`.srt` / `.vtt`)**: Genera subtítulos sincronizados a partir de videos o audios en tu espacio de trabajo.
+* **Traducción de Subtítulos**: Traduce archivos de subtítulos existentes entre múltiples idiomas con un solo comando.
+* **Edición Rápida con FFmpeg**: Une múltiples clips de video o extrae pistas de audio sin necesidad de abrir un editor pesado.
+
+---
+
+### 💻 4. Entorno de Desarrollo y Sandbox en Tiempo Real
+* **Previsualizador Interactivo (Live Sandbox)**: Visualiza al instante aplicaciones web (HTML, CSS, JavaScript, React, Tailwind) generadas por el agente.
+* **Editor de Código con Resaltado de Sintaxis**: Edita y navega entre archivos abiertos con pestañas interactivas.
+* **Exportador de Reportes a PDF**: Convierte el contenido generado o tus documentos directamente a formato PDF descargable.
+
+---
+
+### 🎨 5. Generación de Imágenes por IA (Krea 2 Turbo)
+* **Motor de Inferencia Local**: Generación de imágenes ultra realistas mediante aceleración por GPU (con Krea 2 Turbo GGUF y Qwen 3).
+* **Proporciones Nativas (Sin deformaciones)**: Relaciones de aspecto exactas en `16:9` (1280x768), `9:16` (768x1280), `1:1` (1024x1024), `4:3` y `3:4`.
+* **Generación en Lote**: Produce de 1 a 4 imágenes simultáneas manteniendo la coherencia de estilo y resolución.
+* **Menú Rápido**: Opciones para abrir en el visor del sistema, descargar o copiar la ruta.
+
+---
+
+### 🌐 6. Integraciones y Mensajería
+* **Canales de Notificación**: Envía mensajes y archivos directamente a **Telegram**, **Discord** y **WhatsApp**.
+* **Almacenamiento en la Nube**: Sincronización y copias de seguridad en **Google Drive** y **Dropbox**.
+
+---
+
+## 🔌 Proveedores de Modelos de IA Compatibles
+
+Nai Agent te da la libertad de elegir el cerebro de tu agente, conectando proveedores locales o remotos:
+
+| Proveedor | Tipo | Modelos Compatibles / Ejemplos |
+| :--- | :---: | :--- |
+| 🦙 **Ollama** | Local / Privado | Llama 3, DeepSeek R1, Qwen 2.5, Mistral, Gemma 2, Phi-3 |
+| 🧪 **LM Studio / vLLM** | Local (OpenAI-compatible) | Cualquier modelo GGUF o servidor local en el puerto `1234` |
+| 🌐 **OpenRouter** | Nube (Multi-modelo) | Claude 3.7 Sonnet, DeepSeek V3, GPT-4o, Llama 3.3 70B |
+| ⚡ **Groq** | Nube (Ultra Rápido) | Llama 3.3 70B Versatile, Mixtral 8x7B, Gemma 2 |
+| 🧠 **OpenAI / Anthropic** | Nube | GPT-4o, GPT-4.5, Claude 3.5 / 3.7 Sonnet |
+| 🔷 **Google Gemini** | Nube | Gemini 2.0 Flash, Gemini 1.5 Pro |
 
 ---
 
 ## 📥 Descarga e Instalación para Usuarios
 
-Puedes descargar la última versión compilada desde la sección de **[Releases](https://github.com/arturoobezo/Nai_Agent/releases)** o en la pestaña de **Actions**:
+Descarga los instaladores listos para usar desde la sección de **[Releases](https://github.com/arturoobezo/Nai_Agent/releases)** o en la pestaña **Actions**:
 
 ### 🪟 Windows (10 / 11)
-1. Descarga el archivo `Nai-Agent-Windows-Installer.zip`.
-2. Descomprime el archivo y ejecuta el instalador `Nai Agent Setup.exe`.
-3. Sigue las instrucciones en pantalla. ¡Listo! Se creará un acceso directo en tu escritorio.
+1. Descarga el paquete `Nai-Agent-Windows-Installer.zip`.
+2. Descomprímelo y ejecuta `Nai Agent Setup.exe`.
+3. Sigue los pasos del instalador. Se creará un acceso directo en tu escritorio.
 
 ### 🍎 macOS (Apple Silicon M1/M2/M3/M4 & Intel)
-1. Descarga `Nai-Agent-macOS-Installer.zip`.
+1. Descarga el paquete `Nai-Agent-macOS-Installer.zip`.
 2. Abre el archivo `.dmg` y arrastra **Nai Agent** a tu carpeta de **Aplicaciones**.
-3. *Nota*: La primera vez que lo abras, haz clic derecho sobre la aplicación y selecciona **"Abrir"** para autorizar la ejecución.
+3. *Nota*: La primera vez, haz clic derecho sobre la app y selecciona **"Abrir"** para autorizar la ejecución.
 
 ---
 
 ## 🛠️ Guía para Desarrolladores (Clonar y Modificar)
 
-Si deseas clonar el proyecto, personalizarlo o añadir nuevas funciones:
+Si deseas clonar el proyecto, personalizar la interfaz o agregar tus propias herramientas:
 
-### Prerrequisitos
-- [Node.js](https://nodejs.org/) (versión 20 o superior recomendada).
-- [Git](https://git-scm.com/).
-
-### 1. Clonar el repositorio
 ```bash
+# 1. Clonar el repositorio
 git clone https://github.com/arturoobezo/Nai_Agent.git
 cd Nai_Agent
-```
 
-### 2. Instalar dependencias
-```bash
+# 2. Instalar dependencias
 npm install
-```
 
-### 3. Iniciar en modo desarrollo
-```bash
+# 3. Iniciar en modo desarrollo (Vite + Electron con Hot-Reload)
 npm run dev
+
+# 4. Compilar para producción
+npm run dist:win   # Compila el .exe para Windows
+npm run dist:mac   # Compila el .dmg para macOS
 ```
-Esto levantará el servidor de desarrollo de Vite con recarga en vivo (HMR) y abrirá la ventana de Electron.
-
-### 4. Compilar localmente
-- Para compilar en Windows:
-  ```bash
-  npm run dist:win
-  ```
-- Para compilar en macOS:
-  ```bash
-  npm run dist:mac
-  ```
-
-Los instaladores resultantes se guardarán en la carpeta `release/`.
 
 ---
 
-## ⚙️ Configuración de Proveedores de IA
-
-Para configurar tus modelos y APIs:
-1. Abre **Nai Agent** y haz clic en el ícono de **Configuración / Proveedores** en la barra lateral.
-2. Selecciona tu proveedor preferido:
-   - **Ollama**: Asegúrate de tener Ollama corriendo (`http://localhost:11434`) y selecciona el modelo instalado.
-   - **LM Studio**: Inicia el servidor local en LM Studio (`http://localhost:1234/v1`).
-   - **OpenRouter / OpenAI / Groq**: Ingresa tu clave de API (API Key) y el modelo deseado.
-3. Guarda la configuración y empieza a chatear o crear imágenes.
-
----
-
-## 🏗️ Estructura del Proyecto
+## 🏗️ Estructura del Código
 
 ```text
 Nai_Agent/
-├── .github/workflows/    # Flujos CI/CD de GitHub Actions (Compilación automática)
-├── electron/             # Proceso principal de Electron (IPC, GPU, llamadas a IA, FS)
-│   ├── main.js           # Orquestador del backend de Electron
-│   └── preload.js        # Puente seguro de contexto (ContextBridge)
-├── src/                  # Interfaz de usuario (React 19 + Tailwind CSS)
-│   ├── components/       # Componentes visuales (Chat, Editor, Sandbox, Modales)
-│   ├── context/          # Contextos de estado (AI, Workspace, Temas, Skills)
-│   └── main.jsx          # Punto de entrada de React
-├── public/               # Iconos y recursos estáticos
-└── package.json          # Configuración de dependencias y electron-builder
+├── .github/workflows/    # Automatización CI/CD (GitHub Actions)
+├── electron/             # Proceso principal (IPC, Filesystem, GPU, FFmpeg, Whisper)
+│   ├── main.js           # Backend central y orquestador de herramientas
+│   └── preload.js        # ContextBridge seguro para la interfaz
+├── src/                  # Frontend de la aplicación (React 19 + Tailwind CSS)
+│   ├── components/       # Chat, Editor, Sandbox, Explorer, Modales
+│   ├── context/          # Estados globales (Workspace, AI, Theme, Skills)
+│   └── main.jsx          # Punto de entrada de la UI
+├── public/               # Iconos y recursos visuales
+└── package.json          # Dependencias y configuración de empaquetado
 ```
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Eres libre de usarlo, modificarlo y distribuirlo comercial o personalmente.
+Este proyecto está bajo la Licencia MIT. Eres libre de usarlo, modificarlo y distribuirlo para fines personales o comerciales.
