@@ -744,6 +744,7 @@ export default function SandboxViewer({ customContent, onSwitchToEditor }) {
               <webview
                 ref={webviewRef}
                 src={sandboxUrl}
+                plugins="true"
                 allowpopups="true"
                 webpreferences="allowRunningInsecureContent, javascript=yes, webgl=yes, contextIsolation=no"
                 className="w-full h-full border-none"
@@ -786,6 +787,7 @@ export default function SandboxViewer({ customContent, onSwitchToEditor }) {
               <webview
                 ref={webviewRef}
                 src={sandboxUrl}
+                plugins="true"
                 allowpopups="true"
                 webpreferences="allowRunningInsecureContent, javascript=yes, webgl=yes, contextIsolation=no"
                 className="w-full h-full border-none"

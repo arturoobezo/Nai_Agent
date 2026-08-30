@@ -47,6 +47,14 @@ let memoryOverrideFile = { name: '', content: '' };
 let localServerPort = 54321;
 let localServer = null;
 
+// Prevent unhandled crashes from showing ugly dialogs
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]:', reason);
+});
+
 function startLocalPreviewServer() {
   if (localServer) return;
 
@@ -101,13 +109,28 @@ function startLocalPreviewServer() {
       const mime = MIME_TYPES[ext] || 'application/octet-stream';
       const range = req.headers.range;
 
-      // HTTP 206 Partial Content for video/audio seek & scroll scrubbing
+      // HTTP 206 Partial Content for video/audio seek & PDF chunking
       if (range) {
         const parts = range.replace(/bytes=/, '').split('-');
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
         const chunksize = end - start + 1;
         const fileStream = fs.createReadStream(targetFilePath, { start, end });
+
+        fileStream.on('error', (err) => {
+          if (!res.headersSent) {
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end(`Stream error: ${err.message}`);
+          }
+        });
+
+        req.on('close', () => {
+          fileStream.destroy();
+        });
+
+        res.on('finish', () => {
+          fileStream.destroy();
+        });
 
         res.writeHead(206, {
           'Content-Range': `bytes ${start}-${end}/${stat.size}`,
@@ -117,16 +140,35 @@ function startLocalPreviewServer() {
         });
         fileStream.pipe(res);
       } else {
+        const fileStream = fs.createReadStream(targetFilePath);
+
+        fileStream.on('error', (err) => {
+          if (!res.headersSent) {
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end(`Stream error: ${err.message}`);
+          }
+        });
+
+        req.on('close', () => {
+          fileStream.destroy();
+        });
+
+        res.on('finish', () => {
+          fileStream.destroy();
+        });
+
         res.writeHead(200, {
           'Content-Length': stat.size,
           'Content-Type': mime,
           'Accept-Ranges': 'bytes',
         });
-        fs.createReadStream(targetFilePath).pipe(res);
+        fileStream.pipe(res);
       }
     } catch (err) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end(`Server error: ${err.message}`);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end(`Server error: ${err.message}`);
+      }
     }
   });
 
@@ -192,6 +234,7 @@ function createWindow() {
       contextIsolation: true,
       sandbox: false,
       webviewTag: true,
+      plugins: true,
     },
   });
 
@@ -568,9 +611,8 @@ ipcMain.handle('fs:list-files-detailed', async (event, { folderPath, recursive =
           if (includeTextSummary) {
             try {
               if (ext === '.pdf') {
-                const pdfText = await extractPdfTextAsync(full);
-                summary = pdfText ? pdfText.slice(0, 400) : 'Documento PDF';
-              } else if (['.txt', '.md', '.json', '.html', '.js', '.py', '.css'].includes(ext) && stat.size < 50000) {
+                summary = 'Documento PDF';
+              } else if (['.txt', '.md', '.json', '.html', '.js', '.py', '.css'].includes(ext) && stat.size < 20000) {
                 const raw = await fs.promises.readFile(full, 'utf-8');
                 summary = raw.slice(0, 300).replace(/\s+/g, ' ').trim();
               }
