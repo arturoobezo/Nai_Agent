@@ -14,14 +14,27 @@
   <img src="https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Vite-6.2-646CFF?style=flat-square&logo=vite" alt="Vite" />
   <img src="https://img.shields.io/badge/AI_Engine-Multi--Provider-orange?style=flat-square" alt="Multi-Provider" />
+  <img src="https://img.shields.io/badge/Image_Gen-Krea_2_Turbo-purple?style=flat-square" alt="Krea 2 Turbo" />
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" />
 </p>
 
 ---
 
+## 🖥️ Vista General de la Interfaz
+
+<p align="center">
+  <img src="docs/images/interface_overview.png" alt="Nai Agent Workspace Interface" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 100%;" />
+</p>
+
+* **Editor y Previsualizador Dividido**: Espacio de trabajo simultáneo para código, páginas Web HTML, documentos PDF, imágenes y video.
+* **Chat con el Agente**: Asistente inteligente con herramientas reales de sistema de archivos, habilidades autónomas y conexión a múltiples modelos.
+* **Terminal y Logs en Vivo**: Supervisión de tareas en tiempo real y consola integrada.
+
+---
+
 ## ⚡ ¿Qué es Nai Agent?
 
-**Nai Agent** no es solo un chat con IA: es un **agente autónomo de escritorio con acceso a tu espacio de trabajo local**. Puede leer, entender, crear y modificar archivos de todo tipo, analizar imágenes, documentos y videos, transcribir audios, ejecutar y previsualizar código en vivo, automatizar tareas multimedia y generar imágenes en alta calidad.
+**Nai Agent** no es solo un chat con IA: es un **agente autónomo de escritorio con acceso a tu espacio de trabajo local**. Puede leer, entender, crear y modificar archivos de todo tipo, analizar imágenes, documentos y videos, transcribir audios, ejecutar y previsualizar código en vivo, automatizar tareas multimedia y generar imágenes en alta calidad con aceleración por GPU.
 
 ---
 
@@ -29,7 +42,7 @@
 
 ### 🗂️ 1. Gestión Autónoma del Espacio de Trabajo y Archivos
 * **Creación y Modificación de Archivos**: Crea código, scripts, documentos Markdown, configuraciones JSON, etc., directamente en tu carpeta de proyecto.
-* **Organización del Proyecto**: Renombra, mueve, crea carpetas o elimina archivos obsoletos según las instrucciones que le des.
+* **Organización del Proyecto**: Renombra, mueve, crea carpetas o clasifica archivos automáticamente según las instrucciones que le des.
 * **Lectura y Contexto Completo**: Lee automáticamente el contenido de los archivos de tu proyecto para ayudarte a programar, depurar o redactar con contexto real.
 
 ---
@@ -56,11 +69,17 @@
 
 ---
 
-### 🎨 5. Generación de Imágenes por IA (Krea 2 Turbo)
-* **Motor de Inferencia Local**: Generación de imágenes ultra realistas mediante aceleración por GPU (con Krea 2 Turbo GGUF y Qwen 3).
+### 🎨 5. Generación de Imágenes por IA Local (Krea 2 Turbo)
+
+<p align="center">
+  <img src="docs/images/first_run_models_modal.png" alt="Motor de Generación Local Krea 2 Turbo" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 80%;" />
+</p>
+
+* **Detección Automática de Hardware**: Nai Agent detecta automáticamente tu GPU (ej. NVIDIA RTX) y la VRAM disponible para verificar la compatibilidad de aceleración.
+* **Descarga Asistida en Primer Arranque**: Descarga los modelos optimizados en formato GGUF con un solo clic (`Krea 2 Turbo Q4_K_M`, `Qwen 3 4B Text Encoder` y `Qwen Image VAE`).
 * **Proporciones Nativas (Sin deformaciones)**: Relaciones de aspecto exactas en `16:9` (1280x768), `9:16` (768x1280), `1:1` (1024x1024), `4:3` y `3:4`.
 * **Generación en Lote**: Produce de 1 a 4 imágenes simultáneas manteniendo la coherencia de estilo y resolución.
-* **Menú Rápido**: Opciones para abrir en el visor del sistema, descargar o copiar la ruta.
+* **Menú de Acción Rápida**: Abre la imagen generada en el visor del sistema, descárgala o copia la ruta con un clic.
 
 ---
 
@@ -128,6 +147,7 @@ npm run dist:mac   # Compila el .dmg para macOS
 ```text
 Nai_Agent/
 ├── .github/workflows/    # Automatización CI/CD (GitHub Actions)
+├── docs/images/          # Capturas y recursos gráficos de la documentación
 ├── electron/             # Proceso principal (IPC, Filesystem, GPU, FFmpeg, Whisper)
 │   ├── main.js           # Backend central y orquestador de herramientas
 │   └── preload.js        # ContextBridge seguro para la interfaz
