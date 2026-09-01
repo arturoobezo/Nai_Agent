@@ -1945,9 +1945,12 @@ ${workspaceContext}`
         // Evaluate task completion
         const hasMakeDir = allParsedActions.some((a) => a.tool === 'make_dir' || a.tool === 'create_folder');
         const hasMoveOrFile = allParsedActions.some((a) => a.tool === 'rename_or_move' || a.tool === 'move_file' || a.tool === 'create_file');
-        const isTruncated =
-          response.finishReason === 'length' ||
-          (turnRawContent.includes('<agent_tool') && !turnRawContent.trim().endsWith('>') && !turnRawContent.includes('</agent_tool>'));
+
+        // Accurate unclosed XML detection: count opening tags vs closing (/> or </agent_tool>)
+        const openTagCount = (turnRawContent.match(/<agent_tool\b/gi) || []).length;
+        const closedTagCount = (turnRawContent.match(/(?:\/>|<\/agent_tool>)/gi) || []).length;
+        const hasUnclosedTag = openTagCount > closedTagCount;
+        const isTruncated = response.finishReason === 'length' || hasUnclosedTag;
 
         // Structural Signal 1: Created folders with make_dir, but 0 move/file actions executed
         const hasEmptyDirsCreated = hasMakeDir && !hasMoveOrFile;
