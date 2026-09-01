@@ -3083,39 +3083,50 @@ ipcMain.handle('media:generate-image-ai', async (event, {
     // 1. Native Standalone Local Engine (sd-cli.exe with local GGUF models)
     if (!generatedSuccess) {
       const sdExe = getSdCliBinaryPath();
-      const modelsDirs = getAppModelsDir();
+      const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+      const allModelDirs = [
+        path.join(appData, 'NaiAgent', 'models'),
+        path.join(appData, 'nai-agent', 'models'),
+        path.join(app.getPath('userData'), 'models'),
+      ];
 
-      // Find local diffusion model (Krea 2 Turbo / Flux)
+      // Find local diffusion model (Krea 2 Turbo Q4 / Q5 / Flux)
       let localDiffusion = '';
-      const candidateDiffusions = [
-        path.join(modelsDirs.diffusion, 'krea2_turbo-Q5_K_M.gguf'),
-        path.join(modelsDirs.diffusion, 'Krea-2-Turbo-Q4_K_M.gguf'),
-        path.join(modelsDirs.diffusion, 'krea2_turbo-Q4_K_M.gguf'),
-        path.join(modelsDirs.diffusion, 'krea2_turbo-Q8_0.gguf'),
-        path.join(modelsDirs.diffusion, 'flux-2-klein-4b-BF16.gguf'),
+      const targetNames = [
+        'Krea-2-Turbo-Q4_K_M.gguf',
+        'krea2_turbo-Q4_K_M.gguf',
+        'krea2_turbo-Q5_K_M.gguf',
+        'krea2_turbo-Q8_0.gguf',
+        'flux-2-klein-4b-BF16.gguf',
       ];
-      for (const cd of candidateDiffusions) {
-        if (fs.existsSync(cd)) { localDiffusion = cd; break; }
+      for (const d of allModelDirs) {
+        for (const fn of targetNames) {
+          const p = path.join(d, 'diffusion', fn);
+          if (fs.existsSync(p)) { localDiffusion = p; break; }
+        }
+        if (localDiffusion) break;
       }
 
-      // Find local VAE and CLIP
+      // Find local VAE
       let localVae = '';
-      const candidateVaes = [
-        path.join(modelsDirs.vae, 'qwen_image_vae.safetensors'),
-        path.join(modelsDirs.vae, 'ae.safetensors'),
-        path.join(modelsDirs.vae, 'flux2-vae.safetensors'),
-      ];
-      for (const cv of candidateVaes) {
-        if (fs.existsSync(cv)) { localVae = cv; break; }
+      const vaeNames = ['qwen_image_vae.safetensors', 'ae.safetensors', 'flux2-vae.safetensors'];
+      for (const d of allModelDirs) {
+        for (const fn of vaeNames) {
+          const p = path.join(d, 'vae', fn);
+          if (fs.existsSync(p)) { localVae = p; break; }
+        }
+        if (localVae) break;
       }
 
+      // Find local CLIP
       let localClip = '';
-      const candidateClips = [
-        path.join(modelsDirs.clip, 'qwen3vl_4b_fp8_scaled.safetensors'),
-        path.join(modelsDirs.clip, 'qwen_3_4b_fp4_flux2.safetensors'),
-      ];
-      for (const cc of candidateClips) {
-        if (fs.existsSync(cc)) { localClip = cc; break; }
+      const clipNames = ['qwen3vl_4b_fp8_scaled.safetensors', 'qwen_3_4b_fp4_flux2.safetensors'];
+      for (const d of allModelDirs) {
+        for (const fn of clipNames) {
+          const p = path.join(d, 'clip', fn);
+          if (fs.existsSync(p)) { localClip = p; break; }
+        }
+        if (localClip) break;
       }
 
       if (fs.existsSync(sdExe) && localDiffusion) {
@@ -3130,7 +3141,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
             '--cfg-scale', String(effectiveCfg),
             '--sampling-method', effectiveSampler,
             '--scheduler', effectiveScheduler,
-            '--offload-to-cpu',
+            '--backend', 'cpu',
             '--vae-tiling',
             '-o', finalImagePath,
           ];
