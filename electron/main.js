@@ -3303,8 +3303,9 @@ ipcMain.handle('media:generate-image-ai', async (event, {
     if (!fs.existsSync(imagesDir)) await fs.promises.mkdir(imagesDir, { recursive: true });
 
     const timeId = Date.now();
-    const safeTitle = cleanPrompt.slice(0, 30).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const outFilename = `Imagen_Generada_${safeTitle || 'ai'}_${timeId}.png`;
+    const effectiveSeed = seed && seed > 0 ? seed : Math.floor(Math.random() * 2147483647);
+    const safeTitle = cleanPrompt.slice(0, 25).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const outFilename = `Imagen_Generada_${safeTitle || 'ai'}_s${effectiveSeed}_${timeId}.png`;
     const finalImagePath = path.join(imagesDir, outFilename);
 
     let generatedSuccess = false;
@@ -3364,7 +3365,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
 
       if (fs.existsSync(sdExe) && localDiffusion) {
         try {
-          console.log(`[NATIVE SD] Inferencia local acelerada con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
+          console.log(`[NATIVE SD] Inferencia local acelerada con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, seed ${effectiveSeed}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
           const args = [
             '--diffusion-model', localDiffusion,
             '-p', cleanPrompt,
@@ -3374,6 +3375,8 @@ ipcMain.handle('media:generate-image-ai', async (event, {
             '--cfg-scale', String(effectiveCfg),
             '--sampling-method', effectiveSampler,
             '--scheduler', effectiveScheduler,
+            '-s', String(effectiveSeed),
+            '-t', '8',
             '--backend', 'te=cpu,vae=cpu,diffusion=vulkan0',
             '--diffusion-fa',
             '--vae-tiling',

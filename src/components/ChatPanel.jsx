@@ -1684,14 +1684,15 @@ export default function ChatPanel() {
         let lastImageError = '';
 
         for (let i = 0; i < countToGen; i++) {
-          if (countToGen > 1) setAgentStatusStep(`🎨 Generando imagen ${i + 1} de ${countToGen}...`);
+          const iterationSeed = Math.floor(Math.random() * 2147483647);
+          if (countToGen > 1) setAgentStatusStep(`🎨 Generando imagen ${i + 1} de ${countToGen} (semilla: ${iterationSeed})...`);
           else setAgentStatusStep(`🎨 Generando imagen...`);
 
           const imgRes = await generateAIImage({
             prompt: cleanPrompt,
             width,
             height,
-            seed: -1,
+            seed: iterationSeed,
           });
 
           if (imgRes && imgRes.success) {
