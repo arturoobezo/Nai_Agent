@@ -1597,6 +1597,7 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
         }
       }
 
+      // NOTA: Rama de Anthropic (Claude) auditada sintácticamente pero no verificada en ejecución real (sin cuenta/API key activa disponible para prueba en vivo).
       const payload = {
         model: model || 'claude-3-5-sonnet-20241022',
         max_tokens: max_tokens || 4096,
