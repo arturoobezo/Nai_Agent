@@ -2522,8 +2522,8 @@ ipcMain.handle('media:auto-transcribe-video', async (event, { videoPath, targetL
     // 2. If no cloud key or API call returned empty, run local native Whisper offline!
     if (!generatedSrt && fs.existsSync(tempAudio)) {
       try {
-        const whisperTask = isTranslateToEnglish ? 'translate' : 'transcribe';
-        const localResult = await transcribeAudioFileLocal(tempAudio, requestedLang, whisperTask);
+        // Run Whisper in auto-detect mode to transcribe the actual speech accurately
+        const localResult = await transcribeAudioFileLocal(tempAudio, '', 'transcribe');
         if (localResult && Array.isArray(localResult.chunks) && localResult.chunks.length > 0) {
           generatedSrt = localResult.chunks.map((chunk, idx) => {
             const [startSec, endSec] = chunk.timestamp || [idx * 4, idx * 4 + 4];
@@ -2556,7 +2556,7 @@ ipcMain.handle('media:auto-transcribe-video', async (event, { videoPath, targetL
     if (!generatedSrt) {
       generatedSrt = `1\n00:00:01,000 --> 00:00:05,000\n[Audio sincronizado de ${baseName}]\n`;
     } else if (requestedLang === 'es' || requestedLang === 'español' || requestedLang === 'spanish') {
-      // Auto-translate speech dialogues to Spanish preserving all timecodes
+      // Auto-translate accurately transcribed speech dialogues to Spanish preserving all timecodes
       try {
         generatedSrt = await translateSrtFileContent(generatedSrt, 'es');
       } catch (transErr) {
