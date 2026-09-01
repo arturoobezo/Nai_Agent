@@ -118,15 +118,19 @@ export function ChatSessionsProvider({ children }) {
     }
   };
 
-  // Update messages in the current session
-  const updateCurrentSessionMessages = (newMessages) => {
+  // Update messages in the current session (supports array or functional updater: (prev) => next)
+  const updateCurrentSessionMessages = (updater) => {
     setSessions((prev) =>
       prev.map((s) => {
         if (s.id === activeSessionId) {
+          const currentMessages = Array.isArray(s.messages) ? s.messages : [];
+          const resolvedMessages = typeof updater === 'function' ? updater(currentMessages) : updater;
+          const finalMessages = Array.isArray(resolvedMessages) ? resolvedMessages : currentMessages;
+
           let newTitle = s.title;
           if (s.title.startsWith('Nueva Sesión') || s.title.startsWith('Chat ')) {
-            const firstUserMsg = newMessages.find((m) => m.role === 'user');
-            if (firstUserMsg) {
+            const firstUserMsg = finalMessages.find((m) => m.role === 'user');
+            if (firstUserMsg && typeof firstUserMsg.content === 'string') {
               newTitle = firstUserMsg.content.slice(0, 32).trim() + (firstUserMsg.content.length > 32 ? '...' : '');
             }
           }
@@ -137,7 +141,7 @@ export function ChatSessionsProvider({ children }) {
             workspacePath: s.workspacePath || workspacePath || '',
             workspaceName: s.workspaceName || workspaceName || '',
             updatedAt: new Date().toISOString(),
-            messages: newMessages,
+            messages: finalMessages,
           };
         }
         return s;

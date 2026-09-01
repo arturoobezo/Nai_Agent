@@ -3300,7 +3300,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
           }
 
           await new Promise((resCli, rejCli) => {
-            const child = execFile(sdExe, args, { timeout: 600000 }, (err, stdout, stderr) => {
+            const child = execFile(sdExe, args, { timeout: 600000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
               activeSdChildProcess = null;
               if (err) {
                 const errOut = stderr || stdout || err.message;
@@ -3322,33 +3322,38 @@ ipcMain.handle('media:generate-image-ai', async (event, {
 
             activeSdChildProcess = child;
 
-            // Stream image notifications as each image finishes
-            if (child && child.stdout) {
-              child.stdout.on('data', async (chunk) => {
-                const text = chunk.toString();
-                const match = text.match(/save result image (\d+) to '([^']+)'/i);
-                if (match) {
-                  const savedImgPath = match[2];
-                  if (fs.existsSync(savedImgPath)) {
-                    try {
-                      const imgB = await fs.promises.readFile(savedImgPath);
-                      const dUrl = `data:image/png;base64,${imgB.toString('base64')}`;
-                      if (mainWindow && !mainWindow.isDestroyed()) {
-                        mainWindow.webContents.send('models:image-chunk-ready', {
-                          imageIndex: parseInt(match[1], 10),
-                          imagePath: savedImgPath,
-                          relativePath: path.relative(targetDir, savedImgPath).replace(/\\/g, '/'),
-                          filename: path.basename(savedImgPath),
-                          dataUrl: dUrl,
-                          prompt: cleanPrompt,
-                          width,
-                          height,
-                        });
-                      }
-                    } catch (eSend) {}
-                  }
+            // Stream image notifications as each image finishes (sd-cli outputs to stderr / stdout)
+            const processChunk = async (chunk) => {
+              const text = chunk.toString();
+              const match = text.match(/save result image (\d+) to '([^']+)'/i);
+              if (match) {
+                const savedImgPath = match[2];
+                if (fs.existsSync(savedImgPath)) {
+                  try {
+                    const imgB = await fs.promises.readFile(savedImgPath);
+                    const dUrl = `data:image/png;base64,${imgB.toString('base64')}`;
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                      mainWindow.webContents.send('models:image-chunk-ready', {
+                        imageIndex: parseInt(match[1], 10),
+                        imagePath: savedImgPath,
+                        relativePath: path.relative(targetDir, savedImgPath).replace(/\\/g, '/'),
+                        filename: path.basename(savedImgPath),
+                        dataUrl: dUrl,
+                        prompt: cleanPrompt,
+                        width,
+                        height,
+                      });
+                    }
+                  } catch (eSend) {}
                 }
-              });
+              }
+            };
+
+            if (child && child.stdout) {
+              child.stdout.on('data', processChunk);
+            }
+            if (child && child.stderr) {
+              child.stderr.on('data', processChunk);
             }
           });
         } catch (eNative) {

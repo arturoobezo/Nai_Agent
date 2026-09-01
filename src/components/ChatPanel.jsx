@@ -1502,30 +1502,57 @@ export default function ChatPanel() {
         console.log('[STREAMING IMAGE CHUNK]:', chunk);
         updateCurrentSessionMessages((prev) => {
           const lastMsg = prev[prev.length - 1];
+          const newImg = {
+            path: chunk.imagePath,
+            relativePath: chunk.relativePath,
+            filename: chunk.filename,
+            dataUrl: chunk.dataUrl,
+            prompt: chunk.prompt,
+            width: chunk.width,
+            height: chunk.height,
+          };
+          const cardAction = {
+            tool: 'generate_image',
+            isImage: true,
+            path: chunk.relativePath,
+            imagePath: chunk.imagePath,
+            relativePath: chunk.relativePath,
+            dataUrl: chunk.dataUrl,
+            filename: chunk.filename,
+            prompt: chunk.prompt,
+            width: chunk.width,
+            height: chunk.height,
+          };
+
           if (lastMsg && lastMsg.role === 'assistant') {
             const currentImages = lastMsg.generatedImages || [];
+            const currentActions = lastMsg.actions || [];
             if (!currentImages.some((img) => img.path === chunk.imagePath || img.filename === chunk.filename)) {
-              const newImg = {
-                path: chunk.imagePath,
-                relativePath: chunk.relativePath,
-                filename: chunk.filename,
-                dataUrl: chunk.dataUrl,
-                prompt: chunk.prompt,
-                width: chunk.width,
-                height: chunk.height,
-              };
               return prev.map((m, idx) =>
                 idx === prev.length - 1
                   ? {
                       ...m,
                       generatedImages: [...currentImages, newImg],
-                      content: m.content ? m.content : `🎨 Imagen generada en tiempo real: **${chunk.filename}**`,
+                      actions: [...currentActions, cardAction],
+                      executedActions: [...currentActions, cardAction],
+                      content: m.content || `🎨 Imagen generada en tiempo real: **${chunk.filename}**`,
                     }
                   : m
               );
             }
+            return prev;
+          } else {
+            const newAssistantMsg = {
+              id: `msg-stream-${Date.now()}`,
+              role: 'assistant',
+              content: `🎨 Imagen generada: **${chunk.filename}**`,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              generatedImages: [newImg],
+              actions: [cardAction],
+              executedActions: [cardAction],
+            };
+            return [...prev, newAssistantMsg];
           }
-          return prev;
         });
       });
       return () => unsub();
