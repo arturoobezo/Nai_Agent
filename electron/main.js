@@ -2267,6 +2267,19 @@ ipcMain.handle('media:concat-videos', async (event, { videoPaths, outputPath }) 
   }
 });
 
+async function getVideoDurationSeconds(videoPath) {
+  try {
+    const ffCmd = `ffmpeg -i "${videoPath}"`;
+    const res = await execAsync(ffCmd).catch((err) => ({ stdout: err.stdout || '', stderr: err.stderr || err.message }));
+    const out = (res.stdout || '') + (res.stderr || '');
+    const match = out.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+    if (match) {
+      return parseInt(match[1], 10) * 3600 + parseInt(match[2], 10) * 60 + parseFloat(match[3]);
+    }
+  } catch (e) {}
+  return 0;
+}
+
 // 3. Cut / Trim Video Fragment
 ipcMain.handle('media:cut-video', async (event, { videoPath, outputPath, startTime, endTime, duration }) => {
   try {
@@ -2279,16 +2292,28 @@ ipcMain.handle('media:cut-video', async (event, { videoPath, outputPath, startTi
     const parentDir = path.dirname(finalOutput);
     if (!fs.existsSync(parentDir)) await fs.promises.mkdir(parentDir, { recursive: true });
 
+    let effectiveStart = startTime ? String(startTime).trim() : '00:00:00';
+    let effectiveEnd = endTime ? String(endTime).trim() : '';
+
+    const isCutHalf = (!endTime && !duration) || String(endTime).toLowerCase().includes('mitad') || String(endTime).toLowerCase().includes('half') || String(duration).toLowerCase().includes('mitad');
+
+    if (isCutHalf) {
+      const totalDur = await getVideoDurationSeconds(videoPath);
+      if (totalDur > 0) {
+        effectiveEnd = (totalDur / 2).toFixed(2);
+      }
+    }
+
     let timeArgs = '';
-    if (startTime) timeArgs += `-ss ${startTime} `;
-    if (endTime) timeArgs += `-to ${endTime} `;
+    if (effectiveStart && effectiveStart !== '00:00:00') timeArgs += `-ss ${effectiveStart} `;
+    if (effectiveEnd) timeArgs += `-to ${effectiveEnd} `;
     else if (duration) timeArgs += `-t ${duration} `;
 
-    let cmd = `ffmpeg -y ${timeArgs}-i "${videoPath}" -c copy "${finalOutput}"`;
+    let cmd = `ffmpeg -y ${timeArgs}-i "${videoPath}" -c:v libx264 -preset fast -c:a aac "${finalOutput}"`;
     try {
       await execAsync(cmd);
-    } catch (eCopy) {
-      cmd = `ffmpeg -y ${timeArgs}-i "${videoPath}" -c:v libx264 -preset fast -c:a aac "${finalOutput}"`;
+    } catch (eEncode) {
+      cmd = `ffmpeg -y ${timeArgs}-i "${videoPath}" -c copy "${finalOutput}"`;
       await execAsync(cmd);
     }
 
@@ -2296,8 +2321,8 @@ ipcMain.handle('media:cut-video', async (event, { videoPath, outputPath, startTi
       success: true,
       outputPath: finalOutput,
       filename: path.basename(finalOutput),
-      startTime,
-      endTime,
+      startTime: effectiveStart,
+      endTime: effectiveEnd,
     };
   } catch (err) {
     return { success: false, error: `Error recortando video: ${err.message}` };
@@ -2312,20 +2337,16 @@ ipcMain.handle('media:resize-image', async (event, { inputPath, outputPath, widt
     }
 
     const targetExt = format ? (format.startsWith('.') ? format : `.${format}`) : path.extname(inputPath);
-    const finalOutput = outputPath || path.join(path.dirname(inputPath), `${path.basename(inputPath, path.extname(inputPath))}_resized${targetExt}`);
+    const finalOutput = outputPath || path.join(path.dirname(inputPath), `${path.basename(inputPath, path.extname(inputPath))}_resized_${Date.now()}${targetExt}`);
     const parentDir = path.dirname(finalOutput);
     if (!fs.existsSync(parentDir)) await fs.promises.mkdir(parentDir, { recursive: true });
 
     let scaleFilter = '';
-    if (width && height) {
-      scaleFilter = `-vf "scale=${width}:${height}:force_original_aspect_ratio=decrease"`;
-    } else if (width) {
-      scaleFilter = `-vf "scale=${width}:-1"`;
-    } else if (height) {
-      scaleFilter = `-vf "scale=-1:${height}"`;
-    }
+    if (width && height) scaleFilter = `-vf "scale=${width}:${height}"`;
+    else if (width) scaleFilter = `-vf "scale=${width}:-1"`;
+    else if (height) scaleFilter = `-vf "scale=-1:${height}"`;
 
-    const cmd = `ffmpeg -y -i "${inputPath}" ${scaleFilter} "${finalOutput}"`;
+    const cmd = `ffmpeg -y -i "${inputPath}" ${scaleFilter} -q:v 2 "${finalOutput}"`;
     await execAsync(cmd);
 
     return {
@@ -2340,11 +2361,10 @@ ipcMain.handle('media:resize-image', async (event, { inputPath, outputPath, widt
   }
 });
 
-// 5. Generate & Save Subtitles (SRT + VTT)
+// 5. Generate / Save Subtitles File (.srt and .vtt)
 ipcMain.handle('media:generate-subtitles', async (event, { srtPath, content, vttContent }) => {
   try {
-    if (!srtPath) return { success: false, error: 'Ruta del archivo de subtítulos requerida' };
-
+    if (!srtPath) return { success: false, error: 'Ruta de archivo no especificada' };
     const parentDir = path.dirname(srtPath);
     if (!fs.existsSync(parentDir)) await fs.promises.mkdir(parentDir, { recursive: true });
 
@@ -2433,41 +2453,43 @@ ipcMain.handle('media:translate-subtitles', async (event, { srtPath, targetLang 
       finalContent = await translateSrtFileContent(sourceSrt, targetLang);
     }
 
-    const finalPath = targetPath || (srtPath ? srtPath.replace(/\.(srt|vtt)$/i, `_${targetLang}.srt`) : '');
-    if (!finalPath) return { success: false, error: 'Ruta de archivo no especificada' };
+    if (!finalContent) {
+      return { success: false, error: 'No se pudo generar el contenido traducido' };
+    }
 
-    const parentDir = path.dirname(finalPath);
+    const outSrt = targetPath || srtPath.replace(/\.srt$/i, `_${targetLang}.srt`);
+    const parentDir = path.dirname(outSrt);
     if (!fs.existsSync(parentDir)) await fs.promises.mkdir(parentDir, { recursive: true });
 
-    await fs.promises.writeFile(finalPath, finalContent, 'utf-8');
+    await fs.promises.writeFile(outSrt, finalContent, 'utf-8');
 
-    const vttPath = finalPath.replace(/\.srt$/i, '.vtt');
-    await fs.promises.writeFile(vttPath, convertSrtToVtt(finalContent), 'utf-8');
+    const outVtt = outSrt.replace(/\.srt$/i, '.vtt');
+    await fs.promises.writeFile(outVtt, convertSrtToVtt(finalContent), 'utf-8');
 
     return {
       success: true,
-      srtPath: finalPath,
-      vttPath,
-      filename: path.basename(finalPath),
+      outputPath: outSrt,
+      vttPath: outVtt,
       content: finalContent,
+      filename: path.basename(outSrt),
     };
   } catch (err) {
     return { success: false, error: err.message };
   }
 });
 
-function formatSecondsToSrtTime(seconds) {
-  const sec = Math.max(0, Number(seconds) || 0);
-  const hrs = Math.floor(sec / 3600);
-  const mins = Math.floor((sec % 3600) / 60);
-  const secs = Math.floor(sec % 60);
-  const millis = Math.floor((sec % 1) * 1000);
+function formatSecondsToSrtTime(totalSeconds) {
+  if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds)) totalSeconds = 0;
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = Math.floor(totalSeconds % 60);
+  const millis = Math.floor((totalSeconds % 1) * 1000);
   const pad = (n, z = 2) => String(n).padStart(z, '0');
   return `${pad(hrs)}:${pad(mins)}:${pad(secs)},${pad(millis, 3)}`;
 }
 
 // 7. Auto Transcribe Video to SRT / VTT with Whisper
-ipcMain.handle('media:auto-transcribe-video', async (event, { videoPath, targetLang = 'es', lang = '', outputPath = '', apiKey = '', provider = 'groq' }) => {
+ipcMain.handle('media:auto-transcribe-video', async (event, { videoPath, targetLang = 'es', lang = '', outputPath = '', apiKey = '', provider = 'groq', saveToFile = true }) => {
   try {
     if (!videoPath || !fs.existsSync(videoPath)) {
       return { success: false, error: `Video no encontrado: ${videoPath}` };
@@ -2578,8 +2600,10 @@ ipcMain.handle('media:auto-transcribe-video', async (event, { videoPath, targetL
       }
     }
 
-    await fs.promises.writeFile(srtPath, generatedSrt.trim(), 'utf-8');
-    await fs.promises.writeFile(vttPath, convertSrtToVtt(generatedSrt), 'utf-8');
+    if (saveToFile !== false) {
+      await fs.promises.writeFile(srtPath, generatedSrt.trim(), 'utf-8');
+      await fs.promises.writeFile(vttPath, convertSrtToVtt(generatedSrt), 'utf-8');
+    }
 
     return {
       success: true,

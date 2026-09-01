@@ -1773,14 +1773,16 @@ ${fileList || '(Carpeta vacía)'}`;
           }
 
           // 2. Proactively transcribe and inject audio/video content if user asks to analyze, summarize, explain, or transcribe media
-          const isMediaAnalysisRequest = /(?:subt[ií]tulo|transcrib|transcripci[oó]n|audio a texto|sacar subt|crear subt|generar subt|analiz|resum|explica|qu[eé] (?:dice|trata|pasa|cuenta|hay|ocurre)|de qu[eé]|entiend|escucha|revisa|di[aá]logo|audio|video|trailer|pel[ií]cula|clip)/i.test(userText);
+          const isMediaAnalysisRequest = /(?:analiz|resum|explica|qu[eé] (?:dice|trata|pasa|cuenta|hay|ocurre)|de qu[eé]|entiend|escucha|revisa|di[aá]logo|audio a texto|sacar subt|crear subt|generar subt|subt[ií]tulo|transcrib)/i.test(userText) &&
+                                         /(?:video|audio|clip|trailer|pel[ií]cula|grabaci[oó]n|sonido|mp4|mp3|wav|mkv)/i.test(userText);
           if (isMediaAnalysisRequest) {
             const mediaFiles = (detailed.files || []).filter((f) => !f.isDirectory && /\.(mp4|mkv|mov|avi|webm|mp3|wav|m4a)$/i.test(f.relativePath));
             if (mediaFiles.length > 0) {
               const targetMedia = findBestMatchingFile(mediaFiles, userText);
               const targetLang = /(ingl[eé]s|english|en ingl)/i.test(userText) ? 'en' : 'es';
+              const isExplicitSubSave = /(?:crear subt|generar subt|sacar subt|guardar subt|haz subt|creame subt|hazme subt|genera subt)/i.test(userText);
               setAgentStatusStep(`🎙️ Escuchando y transcribiendo ${targetMedia.name} con Whisper...`);
-              const transRes = await autoTranscribeVideo(targetMedia.relativePath, targetLang);
+              const transRes = await autoTranscribeVideo(targetMedia.relativePath, targetLang, '', isExplicitSubSave);
               if (transRes.success && transRes.content) {
                 console.log(`[MEDIA TRANSCRIPTION] Diálogos listos para ${targetMedia.name} (${transRes.content.length} caracteres)`);
                 workspaceContext += `\n\n[CONTENIDO COMPLETO DE DIÁLOGOS Y AUDIO DE ${targetMedia.relativePath} EXTRAÍDO VIA WHISPER]:\n${transRes.content.slice(0, 12000)}`;
@@ -1804,8 +1806,8 @@ ${fileList || '(Carpeta vacía)'}`;
             }
           }
 
-          // 4. Video concatenation helper
-          if (/(unir|pegar|juntar|combinar|concatenar)/i.test(userText) && /(video|videos|clips)/i.test(userText)) {
+          // 4. Video concatenation helper (Chat mode direct execution)
+          if (!isAgentMode && /(unir|pegar|juntar|combinar|concatenar)/i.test(userText) && /(video|videos|clips)/i.test(userText)) {
             const videoFiles = (detailed.files || []).filter((f) => /\.(mp4|mkv|mov|avi|webm)$/i.test(f.relativePath));
             if (videoFiles.length >= 2) {
               const outName = 'Video_Unido.mp4';
@@ -1817,8 +1819,8 @@ ${fileList || '(Carpeta vacía)'}`;
             }
           }
 
-          // 5. Video cutting / trimming helper
-          if (/(cortar|corta|recortar|recorta|trim|extraer fragmento|partir)/i.test(userText) && /(video|clip|mp4|mkv|mov|avi)/i.test(userText)) {
+          // 5. Video cutting / trimming helper (Chat mode direct execution)
+          if (!isAgentMode && /(cortar|corta|recortar|recorta|trim|extraer fragmento|partir)/i.test(userText) && /(video|clip|mp4|mkv|mov|avi)/i.test(userText)) {
             const videoFiles = (detailed.files || []).filter((f) => /\.(mp4|mkv|mov|avi|webm)$/i.test(f.relativePath));
             if (videoFiles.length > 0) {
               const targetVideo = findBestMatchingFile(videoFiles, userText);
@@ -1830,13 +1832,15 @@ ${fileList || '(Carpeta vacía)'}`;
                 endTime = timeMatches[1];
               } else if (timeMatches.length === 1) {
                 endTime = timeMatches[0];
+              } else if (/(mitad|half|50%)/i.test(userText)) {
+                endTime = 'mitad';
               }
               const ext = targetVideo.name.slice(targetVideo.name.lastIndexOf('.'));
               const outName = `${targetVideo.name.replace(/\.[^.]+$/, '')}_recorte${ext}`;
-              setAgentStatusStep(`✂️ Recortando video ${targetVideo.name} (${startTime} -> ${endTime || 'final'})...`);
+              setAgentStatusStep(`✂️ Recortando video ${targetVideo.name} (${startTime} -> ${endTime || 'mitad'})...`);
               const cutRes = await cutVideo(targetVideo.relativePath, outName, startTime, endTime);
               if (cutRes.success) {
-                workspaceContext += `\n\n[VIDEO RECORTADO CON ÉXITO]: Se ha generado el fragmento ${outName} desde ${startTime} hasta ${endTime || 'el final'}.`;
+                workspaceContext += `\n\n[VIDEO RECORTADO CON ÉXITO]: Se ha generado el fragmento ${outName} desde ${startTime} hasta ${endTime || 'la mitad'}.`;
               }
             }
           }

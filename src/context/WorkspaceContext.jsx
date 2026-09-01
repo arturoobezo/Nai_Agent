@@ -566,7 +566,7 @@ export function WorkspaceProvider({ children }) {
     return { success: false, error: 'No disponible' };
   };
 
-  const autoTranscribeVideo = async (videoRelOrFull, targetLang = 'es', outputRelOrFull = '') => {
+  const autoTranscribeVideo = async (videoRelOrFull, targetLang = 'es', outputRelOrFull = '', saveToFile = true) => {
     let videoPath = videoRelOrFull.trim();
     if (workspacePath && !videoPath.includes(':') && !videoPath.startsWith('/')) {
       videoPath = `${workspacePath}/${videoPath}`.replace(/\\/g, '/');
@@ -590,8 +590,8 @@ export function WorkspaceProvider({ children }) {
     } catch (e) {}
 
     if (window.electronAPI?.autoTranscribeVideo) {
-      const res = await window.electronAPI.autoTranscribeVideo({ videoPath, targetLang, outputPath, apiKey, provider });
-      if (res.success) await refreshTree();
+      const res = await window.electronAPI.autoTranscribeVideo({ videoPath, targetLang, outputPath, apiKey, provider, saveToFile });
+      if (res.success && saveToFile) await refreshTree();
       return res;
     }
     return { success: false, error: 'No disponible' };
