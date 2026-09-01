@@ -226,14 +226,13 @@ async function main() {
 
   const modelQueue = [
     {
-      id: 'qwen_image_vae',
-      name: 'Qwen Image VAE (Krea 2)',
-      targetPath: path.join(dirs.vae, 'qwen_image_vae.safetensors'),
+      id: 'wan_2_1_vae',
+      name: 'Wan 2.1 VAE Oficial (Krea 2)',
+      targetPath: path.join(dirs.vae, 'wan_2.1_vae.safetensors'),
       mirrors: [
-        'https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors',
-        'https://huggingface.co/realrebelai/KREA-2_GGUFs/resolve/main/qwen_image_vae.safetensors',
+        'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors',
       ],
-      expectedSize: 335544320,
+      expectedSize: 253815318,
     },
     {
       id: 'flux2_vae',

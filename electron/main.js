@@ -3252,7 +3252,7 @@ const MODEL_INFERENCE_PRESETS = {
     denoise: 1.0,
     textEncoder: 'qwen3vl_4b_fp8_scaled.safetensors',
     clipType: 'krea2',
-    vae: 'qwen_image_vae.safetensors',
+    vae: 'wan_2.1_vae.safetensors',
   },
   sd15_turbo: {
     name: 'SD 1.5 LCM Turbo',
@@ -3344,7 +3344,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
       }
 
       let localVae = '';
-      const vaeNames = ['qwen_image_vae.safetensors', 'ae.safetensors', 'flux2-vae.safetensors'];
+      const vaeNames = ['wan_2.1_vae.safetensors', 'qwen_image_vae.safetensors', 'ae.safetensors', 'flux2-vae.safetensors'];
       for (const d of allModelDirs) {
         for (const fn of vaeNames) {
           const p = path.join(d, 'vae', fn);
