@@ -1642,7 +1642,11 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
       } else if (typeof data.content === 'string') {
         textContent = data.content;
       }
-      const finishReason = data.stop_reason || '';
+      let finishReason = data.stop_reason || '';
+      if (finishReason === 'max_tokens') finishReason = 'length';
+      else if (finishReason === 'end_turn' || finishReason === 'stop_sequence') finishReason = 'stop';
+      finishReason = String(finishReason).toLowerCase();
+
       if (!textContent) {
         console.warn('[AI Warning]: Respuesta vacía de Anthropic. Objeto recibido completo:', JSON.stringify(data, null, 2));
       }
@@ -1850,8 +1854,10 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
         visibleParts.push(reasoning.trim());
       }
 
-      let messageContent = visibleParts.join('\n\n');
-      const finishReason = data.choices?.[0]?.finish_reason || data.finish_reason || data.stop_reason || '';
+      let finishReason = data.choices?.[0]?.finish_reason || data.finish_reason || data.candidates?.[0]?.finishReason || data.stop_reason || '';
+      if (String(finishReason).toUpperCase() === 'MAX_TOKENS') finishReason = 'length';
+      else if (String(finishReason).toUpperCase() === 'STOP') finishReason = 'stop';
+      finishReason = String(finishReason).toLowerCase();
 
       console.log(`[MAIN PROCESS AI] Extracción completada. Longitud: ${messageContent.length} caracteres, finishReason: "${finishReason}"`);
 

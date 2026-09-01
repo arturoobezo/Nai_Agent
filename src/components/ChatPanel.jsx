@@ -1788,11 +1788,15 @@ ${fileList || '(Carpeta vacía)'}`;
       const systemInstruction = isAgentMode
         ? `Eres Nai Agent, un asistente de Inteligencia Artificial profesional con capacidades de ejecución autónoma de archivos en el espacio de trabajo local del usuario.
 
-REGLA DE CREACIÓN DE PROYECTOS, PÁGINAS WEB Y ARCHIVOS:
-- Cuando el usuario te pida crear una página web, landing page, proyecto o varios archivos:
-  1. EMITE PRIMERO las etiquetas <agent_tool name="create_file" path="index.html">, <agent_tool name="create_file" path="styles.css">, etc. con el código completo y funcional.
-  2. NUNCA escribas el código como bloques de código markdown normales \`\`\` en tu respuesta cuando el usuario quiera crear el proyecto en su espacio de trabajo. Emite SIEMPRE <agent_tool name="create_file"> directamente para que los archivos se creen en su equipo.
-  3. Después de cerrar todas las etiquetas </agent_tool>, escribe una breve explicación o instrucciones de uso.
+REGLAS FUNDAMENTALES DEL MODO AGENTE:
+1. NO ANUNCIES LO QUE VAS A HACER NI PIDAS PERMISO: Ejecuta las acciones directamente usando las etiquetas <agent_tool>.
+2. NO DES LA TAREA POR TERMINADA HASTA HABER COMPLETADO TODOS LOS PASOS NECESARIOS: No te limites a planificar o crear carpetas vacías.
+3. CREAR Y ORGANIZAR CARPETAS:
+   - Si creas una carpeta con <agent_tool name="make_dir" path="Carpeta" />, DEBES emitir de inmediato en la misma respuesta todas las etiquetas <agent_tool name="rename_or_move"> o <agent_tool name="create_file"> para poblarla con los archivos correspondientes.
+4. CREACIÓN DE PROYECTOS Y PÁGINAS WEB:
+   - EMITE PRIMERO las etiquetas <agent_tool name="create_file" path="index.html">, <agent_tool name="create_file" path="styles.css">, etc. con el código completo y funcional.
+   - NUNCA escribas el código como bloques de markdown normales en tu texto si vas a crear los archivos. Emite SIEMPRE <agent_tool name="create_file"> directamente.
+   - Después de cerrar todas las etiquetas </agent_tool>, escribe una breve explicación o resumen.
 
 HERRAMIENTAS DISPONIBLES:
 1. CREAR ARCHIVOS:
@@ -1855,27 +1859,66 @@ ${workspaceContext}`
           }),
       ];
 
-      const response = await sendAIMessage(apiPayloadMessages, {
-        webSearch: isWebSearchEnabled,
-        max_tokens: isAgentMode ? 8192 : undefined,
-      });
+      let currentPayloadMessages = [...apiPayloadMessages];
+      let accumulatedRawContent = '';
+      let accumulatedDisplayText = '';
+      let allParsedActions = [];
+      let allExecutedActions = [];
+      let allCodeBlocks = [];
+      let lastModelUsed = '';
+      let lastWebResults = [];
+      let isFinalAborted = false;
+      let finalErrorMessage = '';
+      let autoTurnsCount = 0;
+      const maxAutoTurns = 3;
 
-      console.log('[CHATPANEL] sendAIMessage completado con resultado:', response);
+      while (autoTurnsCount <= maxAutoTurns) {
+        setAgentStatusStep(
+          autoTurnsCount === 0
+            ? 'Analizando espacio de trabajo y ejecutando herramientas...'
+            : `Ejecutando pasos automáticos del agente (Turno ${autoTurnsCount + 1})...`
+        );
 
-      if (response && response.success) {
-        let rawContent = response.content || 'Sin respuesta del modelo.';
-        const parsed = parseAgentMessage(rawContent);
+        const response = await sendAIMessage(currentPayloadMessages, {
+          webSearch: isWebSearchEnabled,
+          max_tokens: isAgentMode ? 8192 : undefined,
+        });
 
-        // Execute any autonomous actions if Agent Mode is active
-        let actionsToExecute = parsed.actions || [];
+        console.log(`[CHATPANEL] sendAIMessage turno ${autoTurnsCount + 1} completado:`, response);
 
-        // Safety fallback: if in Agent Mode with file creation intent, and model output standard codeblocks without <agent_tool>, convert and create them automatically
-        if (isAgentMode && actionsToExecute.length === 0 && parsed.codeBlocks && parsed.codeBlocks.length > 0) {
+        if (!response || !response.success) {
+          if (response?.aborted) {
+            isFinalAborted = true;
+          } else {
+            finalErrorMessage = response?.error || 'Error al comunicarse con el proveedor de IA.';
+          }
+          break;
+        }
+
+        lastModelUsed = response.model;
+        lastWebResults = response.webResults || [];
+        const turnRawContent = response.content || '';
+        accumulatedRawContent = accumulatedRawContent
+          ? `${accumulatedRawContent}\n\n${turnRawContent}`
+          : turnRawContent;
+
+        const parsed = parseAgentMessage(turnRawContent);
+        if (parsed.displayText) {
+          accumulatedDisplayText = accumulatedDisplayText
+            ? `${accumulatedDisplayText}\n\n${parsed.displayText}`
+            : parsed.displayText;
+        }
+        allCodeBlocks.push(...(parsed.codeBlocks || []));
+
+        let turnActions = parsed.actions || [];
+
+        // Safety fallback: if in Agent Mode with file creation intent, and model output standard codeblocks without <agent_tool>, convert them
+        if (isAgentMode && turnActions.length === 0 && parsed.codeBlocks && parsed.codeBlocks.length > 0) {
           const isFileCreationIntent = /(crea|genera|haz|construye|p[aá]gina|web|landing|proyecto|archivo|c[oó]digo|guarda)/i.test(userText);
           if (isFileCreationIntent) {
             for (const cb of parsed.codeBlocks) {
               if (cb.filename && !cb.filename.endsWith('.txt') && cb.code && cb.code.trim()) {
-                actionsToExecute.push({
+                turnActions.push({
                   type: 'tool_call',
                   tool: 'create_file',
                   path: cb.filename,
@@ -1886,34 +1929,85 @@ ${workspaceContext}`
           }
         }
 
-        let executedActions = [];
-        if (isAgentMode && actionsToExecute.length > 0) {
-          executedActions = await executeAgentActions(actionsToExecute);
+        allParsedActions.push(...turnActions);
+
+        // Execute actions for this turn
+        if (isAgentMode && turnActions.length > 0) {
+          const executed = await executeAgentActions(turnActions);
+          allExecutedActions.push(...executed);
         }
 
-        // Check if response was truncated by token length limit
-        if (
+        // Loop Stagnation Protection: If not in agent mode or no auto-continuation needed, exit
+        if (!isAgentMode) {
+          break;
+        }
+
+        // Evaluate task completion
+        const hasMakeDir = allParsedActions.some((a) => a.tool === 'make_dir' || a.tool === 'create_folder');
+        const hasMoveOrFile = allParsedActions.some((a) => a.tool === 'rename_or_move' || a.tool === 'move_file' || a.tool === 'create_file');
+        const isTruncated =
           response.finishReason === 'length' ||
-          (rawContent.includes('<agent_tool') && !rawContent.trim().endsWith('>') && !rawContent.includes('</agent_tool>'))
-        ) {
-          rawContent += `\n\n⚠️ *Nota del Agente:* La respuesta alcanzó el límite de longitud de tokens del modelo. He ejecutado ${executedActions.length} acciones hasta aquí. Si quedaron archivos pendientes en la carpeta, puedes escribir *"continúa"* para completar el resto.`;
+          (turnRawContent.includes('<agent_tool') && !turnRawContent.trim().endsWith('>') && !turnRawContent.includes('</agent_tool>'));
+
+        // Structural Signal 1: Created folders with make_dir, but 0 move/file actions executed
+        const hasEmptyDirsCreated = hasMakeDir && !hasMoveOrFile;
+
+        const isTaskIncomplete = isTruncated || hasEmptyDirsCreated;
+
+        // Loop Stagnation / Cost Protection:
+        // If this turn added 0 new actions and not truncated, stop immediately
+        const newActionsThisTurn = turnActions.length;
+        if (autoTurnsCount > 0 && newActionsThisTurn === 0 && !isTruncated) {
+          console.warn('[AGENT AUTO-LOOP] Modelo no generó acciones nuevas en el turno de continuación. Deteniendo bucle.');
+          break;
         }
 
+        if (!isTaskIncomplete) {
+          // Task cleanly completed
+          break;
+        }
+
+        autoTurnsCount++;
+        if (autoTurnsCount > maxAutoTurns) {
+          // Max turns reached, append safety notice
+          accumulatedRawContent +=
+            '\n\n⚠️ *Aviso del Agente:* El agente no pudo completar la tarea automáticamente después de varios intentos. Puede que falten pasos — revisa los archivos en tu espacio de trabajo o escribe *"continúa"* para seguir.';
+          break;
+        }
+
+        // Prepare continuation message for next turn
+        console.log(
+          `[AGENT AUTO-LOOP] Disparando turno de continuación automático ${autoTurnsCount}... Causa: ${
+            isTruncated ? 'truncado_por_longitud' : 'carpetas_sin_poblar'
+          }`
+        );
+        currentPayloadMessages = [
+          ...currentPayloadMessages,
+          { role: 'assistant', content: turnRawContent },
+          {
+            role: 'user',
+            content:
+              'Continúa de inmediato ejecutando las acciones pendientes con las etiquetas <agent_tool> para los archivos restantes. No te detengas hasta completar todos los pasos.',
+          },
+        ];
+      }
+
+      if (accumulatedRawContent || allExecutedActions.length > 0) {
         const assistantMessage = {
           id: `ai-${Date.now()}`,
           role: 'assistant',
-          content: rawContent,
-          displayText: parsed.displayText,
-          actions: parsed.actions,
-          executedActions,
-          codeBlocks: parsed.codeBlocks,
+          content: accumulatedRawContent || 'Tarea completada.',
+          displayText: accumulatedDisplayText,
+          actions: allParsedActions,
+          executedActions: allExecutedActions,
+          codeBlocks: allCodeBlocks,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          modelUsed: response.model,
-          webResults: response.webResults || [],
+          modelUsed: lastModelUsed,
+          webResults: lastWebResults,
         };
-        console.log('[CHATPANEL] Inyectando mensaje de asistente en la sesión:', assistantMessage);
+        console.log('[CHATPANEL] Inyectando mensaje final de asistente en la sesión:', assistantMessage);
         updateCurrentSessionMessages([...newMessages, assistantMessage]);
-      } else if (response && response.aborted) {
+      } else if (isFinalAborted) {
         updateCurrentSessionMessages([
           ...newMessages,
           {
@@ -1923,15 +2017,14 @@ ${workspaceContext}`
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
-      } else {
-        const errorMessage = response?.error || 'Error al comunicarse con el proveedor de IA.';
+      } else if (finalErrorMessage) {
         updateCurrentSessionMessages([
           ...newMessages,
           {
             id: `err-${Date.now()}`,
             role: 'assistant',
             isError: true,
-            content: `⚠️ **Error del Proveedor (${activeConfig.name}):** ${errorMessage}`,
+            content: `⚠️ **Error del Proveedor (${activeConfig.name}):** ${finalErrorMessage}`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
