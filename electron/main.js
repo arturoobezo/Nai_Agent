@@ -3246,7 +3246,7 @@ const MODEL_INFERENCE_PRESETS = {
   krea2_turbo: {
     name: 'Krea 2 Turbo',
     steps: 8,
-    cfgScale: 1.0,
+    cfgScale: 0.0,
     sampler: 'euler',
     scheduler: 'simple',
     denoise: 1.0,
