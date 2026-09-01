@@ -67,6 +67,14 @@
       "icon": "public/logo.png",
       "category": "public.app-category.productivity",
       "identity": null
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "public/logo.png",
+      "category": "Development"
     }
   },
   "dependencies": {

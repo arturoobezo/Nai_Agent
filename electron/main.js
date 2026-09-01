@@ -3399,6 +3399,11 @@ ipcMain.handle('media:generate-image-ai', async (event, {
       if (fs.existsSync(sdExe) && localDiffusion) {
         try {
           console.log(`[NATIVE SD] Inferencia local acelerada con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, seed ${effectiveSeed}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
+          const isMac = process.platform === 'darwin';
+          const backendParam = isMac
+            ? 'te=cpu,vae=cpu,diffusion=metal'
+            : 'te=cpu,vae=cpu,diffusion=vulkan0';
+
           const args = [
             '--diffusion-model', localDiffusion,
             '-p', cleanPrompt,
@@ -3410,7 +3415,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
             '--scheduler', effectiveScheduler,
             '-s', String(effectiveSeed),
             '-t', '8',
-            '--backend', 'te=cpu,vae=cpu,diffusion=vulkan0',
+            '--backend', backendParam,
             '--diffusion-fa',
             '-o', finalImagePath,
           ];
