@@ -2523,23 +2523,25 @@ ipcMain.handle('media:auto-transcribe-video', async (event, { videoPath, targetL
     if (!generatedSrt && fs.existsSync(tempAudio)) {
       try {
         const whisperTask = isTranslateToEnglish ? 'translate' : 'transcribe';
-        const localText = await transcribeAudioFileLocal(tempAudio, requestedLang, whisperTask);
-        if (localText) {
-          const sentences = localText.split(/(?<=[.?!])\s+/).filter(Boolean);
+        const localResult = await transcribeAudioFileLocal(tempAudio, requestedLang, whisperTask);
+        if (localResult && Array.isArray(localResult.chunks) && localResult.chunks.length > 0) {
+          generatedSrt = localResult.chunks.map((chunk, idx) => {
+            const [startSec, endSec] = chunk.timestamp || [idx * 4, idx * 4 + 4];
+            const start = formatSecondsToSrtTime(startSec);
+            const end = formatSecondsToSrtTime(endSec || startSec + 3);
+            const text = (chunk.text || '').trim();
+            return `${idx + 1}\n${start} --> ${end}\n${text}\n`;
+          }).join('\n');
+        } else if (localResult?.text) {
+          const sentences = localResult.text.split(/(?<=[.?!])\s+/).filter(Boolean);
           if (sentences.length > 0) {
             generatedSrt = sentences.map((sent, i) => {
               const startSec = i * 4;
               const endSec = startSec + 4;
-              const formatTc = (s) => {
-                const hrs = String(Math.floor(s / 3600)).padStart(2, '0');
-                const mins = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-                const secs = String(Math.floor(s % 60)).padStart(2, '0');
-                return `${hrs}:${mins}:${secs},000`;
-              };
-              return `${i + 1}\n${formatTc(startSec)} --> ${formatTc(endSec)}\n${sent.trim()}`;
-            }).join('\n\n');
+              return `${i + 1}\n${formatSecondsToSrtTime(startSec)} --> ${formatSecondsToSrtTime(endSec)}\n${sent.trim()}\n`;
+            }).join('\n');
           } else {
-            generatedSrt = `1\n00:00:01,000 --> 00:00:10,000\n${localText}\n`;
+            generatedSrt = `1\n00:00:01,000 --> 00:00:10,000\n${localResult.text}\n`;
           }
         }
       } catch (localErr) {
@@ -2595,7 +2597,7 @@ async function getLocalTranscriber() {
 
 const wavefile = require('wavefile');
 
-async function transcribeAudioFileLocal(audioFilePath, lang = 'spanish', task = 'transcribe') {
+async function transcribeAudioFileLocal(audioFilePath, lang = '', task = 'transcribe') {
   try {
     const tempWav = path.join(app.getPath('temp'), `nai_local_whisper_${Date.now()}.wav`);
     const cmd = `ffmpeg -y -i "${audioFilePath}" -ar 16000 -ac 1 -c:a pcm_s16le "${tempWav}"`;
@@ -2617,41 +2619,27 @@ async function transcribeAudioFileLocal(audioFilePath, lang = 'spanish', task = 
     }
 
     const transcriber = await getLocalTranscriber();
-    const languageCode = (lang === 'en' || lang === 'english' || lang === 'ingles') ? 'english' : 'spanish';
+    const whisperOpts = {
+      chunk_length_s: 30,
+      stride_length_s: 5,
+      return_timestamps: true,
+    };
 
-    // Chunk in 30-second segments (480,000 samples) to ensure zero memory exhaustion
-    const CHUNK_SIZE = 16000 * 30;
-    const totalSamples = audioData.length;
-    let fullText = '';
-
-    if (totalSamples <= CHUNK_SIZE) {
-      const output = await transcriber(audioData, {
-        language: languageCode,
-        task: task || 'transcribe',
-      });
-      fullText = output?.text?.trim() || '';
-    } else {
-      const chunks = [];
-      for (let offset = 0; offset < totalSamples; offset += CHUNK_SIZE) {
-        const chunkSlice = audioData.slice(offset, Math.min(offset + CHUNK_SIZE, totalSamples));
-        if (chunkSlice.length > 8000) {
-          const chunkRes = await transcriber(chunkSlice, {
-            language: languageCode,
-            task: task || 'transcribe',
-          });
-          if (chunkRes?.text) {
-            chunks.push(chunkRes.text.trim());
-          }
-        }
-      }
-      fullText = chunks.join(' ');
+    if (lang === 'en' || lang === 'english' || lang === 'ingles') {
+      whisperOpts.language = 'english';
+    } else if (lang === 'es' || lang === 'spanish' || lang === 'español') {
+      whisperOpts.language = 'spanish';
     }
 
+    if (task) whisperOpts.task = task;
+
+    const output = await transcriber(audioData, whisperOpts);
+
     try { await fs.promises.unlink(tempWav); } catch (e) {}
-    return fullText.trim();
+    return output;
   } catch (err) {
     console.error('Error in local Whisper transcription:', err);
-    return '';
+    return null;
   }
 }
 
