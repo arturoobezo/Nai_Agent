@@ -2736,7 +2736,8 @@ async function detectSystemHardware() {
           if (firstGpu.length >= 2) {
             const bytes = parseInt(firstGpu[0] || '0', 10);
             gpuName = firstGpu[1] || gpuName;
-            if (bytes > 0) vramGB = Math.round(bytes / (1024 * 1024 * 1024));
+            // 25% safety margin for AMD/Intel GPUs in Windows to prevent driver VRAM allocation overcommit
+            if (bytes > 0) vramGB = Math.max(2, Math.round((bytes / (1024 * 1024 * 1024)) * 0.75));
           }
         }
       }
@@ -3378,7 +3379,15 @@ ipcMain.handle('media:generate-image-ai', async (event, {
           }
 
           await new Promise((resCli, rejCli) => {
-            const child = execFile(sdExe, args, { timeout: 600000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+            const child = execFile(
+              sdExe,
+              args,
+              {
+                detached: process.platform !== 'win32',
+                timeout: 600000,
+                maxBuffer: 10 * 1024 * 1024,
+              },
+              (err, stdout, stderr) => {
               activeSdChildProcess = null;
               if (err) {
                 const errOut = stderr || stdout || err.message;
