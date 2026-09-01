@@ -1839,6 +1839,7 @@ ${workspaceContext}`
             if (window.electronAPI?.readImageDataUrl) {
               const imgRes = await window.electronAPI.readImageDataUrl({ filePath: fullImgPath });
               if (imgRes?.success && imgRes?.dataUrl) {
+                console.log(`[CHATPANEL VISION] Imagen cargada desde "${fullImgPath}". Tamaño dataUrl: ${imgRes.dataUrl.length} caracteres (~${Math.round(imgRes.dataUrl.length * 0.75 / 1024)} KB)`);
                 attachedImages.push(imgRes.dataUrl);
                 setAgentStatusStep(`👁️ Adjuntando imagen ${matchedImg.name} a la visión multimodal...`);
               }

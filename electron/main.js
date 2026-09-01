@@ -1481,6 +1481,8 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
               }
               for (const img of m.images) {
                 if (img) {
+                  const dataSizeKB = Math.round((img.length * 0.75) / 1024);
+                  console.log(`[MULTIMODAL PAYLOAD] Imagen adjunta detectada en mensaje (${m.role}). Tamaño dataUrl: ${img.length} caracteres (~${dataSizeKB} KB)`);
                   parts.push({
                     type: 'image_url',
                     image_url: { url: img },
