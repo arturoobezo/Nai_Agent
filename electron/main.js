@@ -3245,7 +3245,7 @@ ipcMain.handle('models:download-model', async (event, { modelId }) => {
 const MODEL_INFERENCE_PRESETS = {
   krea2_turbo: {
     name: 'Krea 2 Turbo',
-    steps: 4,
+    steps: 8,
     cfgScale: 1.0,
     sampler: 'euler',
     scheduler: 'simple',
@@ -3256,7 +3256,7 @@ const MODEL_INFERENCE_PRESETS = {
   },
   sd15_turbo: {
     name: 'SD 1.5 LCM Turbo',
-    steps: 4,
+    steps: 8,
     cfgScale: 1.8,
     sampler: 'lcm',
     scheduler: 'karras',
