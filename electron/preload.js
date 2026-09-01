@@ -20,7 +20,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   makeDir: (payload) => ipcRenderer.invoke('fs:make-dir', payload),
   listFilesDetailed: (payload) => ipcRenderer.invoke('fs:list-files-detailed', payload),
   readPdfText: (payload) => ipcRenderer.invoke('fs:read-pdf-text', payload),
-  readImageDataUrl: (payload) => ipcRenderer.invoke('fs:read-image-data-url', payload),
 
   // PDF Direct Generation & Export
   generateDirectPDF: (payload) => ipcRenderer.invoke('pdf:generate-direct', payload),

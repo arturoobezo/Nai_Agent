@@ -257,9 +257,14 @@ function createWindow() {
     console.log(`[Nai Agent] Loading dev URL: ${devUrl}`);
     mainWindow.loadURL(devUrl);
 
+    // Auto-reload when content is ready
+    mainWindow.webContents.on('did-finish-load', () => {
+      console.log('[Nai Agent] UI cargada exitosamente');
+    });
+
     // Retry if Vite isn't ready yet
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-      console.log(`[Nai Agent] Load failed (${errorCode}: ${errorDescription}), retrying in 1s...`);
+      console.log(`[Nai Agent] Load failed (${errorCode}: ${errorDescription}), reintentando en 1s...`);
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.loadURL(getDevServerUrl());
@@ -270,6 +275,17 @@ function createWindow() {
     mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
       if (level >= 2) {
         console.log(`[Renderer ${level === 3 ? 'ERROR' : 'WARN'}]: ${message} (${sourceId}:${line})`);
+      }
+    });
+
+    // Register dev keyboard shortcuts
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (input.type === 'keyDown') {
+        if (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i')) {
+          mainWindow.webContents.toggleDevTools();
+        } else if (input.key === 'F5' || (input.control && input.key.toLowerCase() === 'r')) {
+          mainWindow.loadURL(getDevServerUrl());
+        }
       }
     });
   } else {
