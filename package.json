@@ -8,7 +8,7 @@
     "verify:privacy": "node scripts/verify-offline-privacy.js",
     "dev:vite": "vite",
     "dev:electron": "wait-on file:.vite-port --timeout 30000 && electron --js-flags=\"--max-old-space-size=4096\" .",
-    "dev": "npm run verify:privacy && concurrently -k -n \"VITE,ELECTRON\" -c \"blue,green\" \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev": "npm run verify:privacy && node -e \"try{require('fs').unlinkSync('.vite-port')}catch(e){}\" && concurrently -k -n \"VITE,ELECTRON\" -c \"blue,green\" \"npm run dev:vite\" \"npm run dev:electron\"",
     "build:vite": "npm run verify:privacy && vite build",
     "build": "npm run verify:privacy && npm run build:vite",
     "dist:win": "npm run build && electron-builder --win",
