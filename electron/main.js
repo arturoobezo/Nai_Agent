@@ -1633,11 +1633,24 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
       }
 
       const data = await response.json();
-      const textContent = data.content?.find((c) => c.type === 'text')?.text || '';
+      let textContent = '';
+      if (Array.isArray(data.content)) {
+        textContent = data.content
+          .map((c) => (c.type === 'text' ? c.text : c.type === 'thinking' ? c.thinking : ''))
+          .filter(Boolean)
+          .join('\n\n');
+      } else if (typeof data.content === 'string') {
+        textContent = data.content;
+      }
+      const finishReason = data.stop_reason || '';
+      if (!textContent) {
+        console.warn('[AI Warning]: Respuesta vacía de Anthropic. Objeto recibido completo:', JSON.stringify(data, null, 2));
+      }
 
       return {
         success: true,
         content: textContent,
+        finishReason,
         usage: data.usage || null,
         model: data.model || model,
         webResults,
@@ -1780,13 +1793,29 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
       const data = await response.json();
       const choiceMsg = data.choices?.[0]?.message;
       let messageContent = choiceMsg?.content ?? '';
-      if (!messageContent && choiceMsg?.reasoning_content) {
-        messageContent = choiceMsg.reasoning_content;
+
+      // Exhaustive extraction of reasoning, thoughts, and text fields
+      if (!messageContent) {
+        messageContent =
+          choiceMsg?.reasoning_content ||
+          choiceMsg?.reasoning ||
+          choiceMsg?.thought ||
+          choiceMsg?.thinking ||
+          choiceMsg?.text ||
+          data.choices?.[0]?.text ||
+          '';
+      }
+
+      const finishReason = data.choices?.[0]?.finish_reason || data.finish_reason || data.stop_reason || '';
+
+      if (!messageContent) {
+        console.warn('[AI Warning]: Respuesta vacía del proveedor. Objeto recibido completo:', JSON.stringify(data, null, 2));
       }
 
       return {
         success: true,
         content: messageContent,
+        finishReason,
         usage: data.usage || null,
         model: data.model || model,
         webResults,

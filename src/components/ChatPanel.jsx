@@ -1056,6 +1056,7 @@ export default function ChatPanel() {
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isUserSubmitting, setIsUserSubmitting] = useState(false);
   const [agentStatusStep, setAgentStatusStep] = useState('');
   const [isAgentMode, setIsAgentMode] = useState(() => {
     return localStorage.getItem('nai_agent_mode') !== 'false';
@@ -1561,8 +1562,9 @@ export default function ChatPanel() {
 
   const handleSend = async (e) => {
     e?.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isUserSubmitting || isLoading) return;
 
+    setIsUserSubmitting(true);
     const userText = input.trim();
     console.log('[CHATPANEL] handleSend iniciado con texto:', userText);
     const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1583,6 +1585,7 @@ export default function ChatPanel() {
 
     // Pre-flight check: if cloud provider has no API key, alert the user immediately
     if (activeConfig.type === 'cloud' && !activeConfig.apiKey?.trim()) {
+      setIsUserSubmitting(false);
       const promptMsg = {
         id: `key-req-${Date.now()}`,
         role: 'assistant',
@@ -1848,18 +1851,27 @@ ${workspaceContext}`;
 
       const response = await sendAIMessage(apiPayloadMessages, {
         webSearch: isWebSearchEnabled,
+        max_tokens: isAgentMode ? 8192 : undefined,
       });
 
       console.log('[CHATPANEL] sendAIMessage completado con resultado:', response);
 
       if (response && response.success) {
-        const rawContent = response.content || 'Sin respuesta del modelo.';
+        let rawContent = response.content || 'Sin respuesta del modelo.';
         const parsed = parseAgentMessage(rawContent);
 
         // Execute any autonomous actions if Agent Mode is active
         let executedActions = [];
         if (isAgentMode && parsed.actions && parsed.actions.length > 0) {
           executedActions = await executeAgentActions(parsed.actions);
+        }
+
+        // Check if response was truncated by token length limit
+        if (
+          response.finishReason === 'length' ||
+          (rawContent.includes('<agent_tool') && !rawContent.trim().endsWith('>') && !rawContent.includes('</agent_tool>'))
+        ) {
+          rawContent += `\n\n⚠️ *Nota del Agente:* La respuesta alcanzó el límite de longitud de tokens del modelo. He ejecutado ${executedActions.length} acciones hasta aquí. Si quedaron archivos pendientes en la carpeta, puedes escribir *"continúa"* para completar el resto.`;
         }
 
         const assistantMessage = {
@@ -1912,6 +1924,7 @@ ${workspaceContext}`;
       ]);
     } finally {
       setIsLoading(false);
+      setIsUserSubmitting(false);
       setAgentStatusStep('');
     }
   };
