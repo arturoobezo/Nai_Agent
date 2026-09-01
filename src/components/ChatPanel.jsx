@@ -1513,6 +1513,20 @@ export default function ChatPanel() {
     const newMessages = [...messages, userMessage];
     updateCurrentSessionMessages(newMessages);
     setInput('');
+
+    // Pre-flight check: if cloud provider has no API key, alert the user immediately
+    if (activeConfig.type === 'cloud' && !activeConfig.apiKey?.trim()) {
+      const promptMsg = {
+        id: `key-req-${Date.now()}`,
+        role: 'assistant',
+        isError: true,
+        content: `🔑 **API Key requerida para ${activeConfig.name}**\n\nPor favor ve a la pestaña **Modelos & Proveedores IA** (icono de controles 🎛️ en la barra lateral) e ingresa tu API Key para **${activeConfig.name}**, o selecciona otro proveedor disponible (Google Gemini, OpenAI, Claude, Groq, Ollama, etc.).`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      updateCurrentSessionMessages([...newMessages, promptMsg]);
+      return;
+    }
+
     setIsLoading(true);
     setAgentStatusStep('Analizando espacio de trabajo y ejecutando herramientas...');
 
@@ -1875,7 +1889,18 @@ ${workspaceContext}`;
         isDark ? 'border-[#242436] bg-[#12121c]/80' : 'border-[#e2e8f0] bg-[#ffffff]/80'
       }`}>
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+          <div
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              activeConfig.status === 'connected'
+                ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]'
+                : activeConfig.status === 'checking'
+                ? 'bg-amber-400 animate-pulse'
+                : activeConfig.status === 'error'
+                ? 'bg-rose-400'
+                : 'bg-slate-400'
+            }`}
+            title={`Estado: ${activeConfig.status || 'idle'}`}
+          />
           <span className={`text-xs font-semibold truncate ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
             {activeConfig.name || 'IA Activa'}
           </span>
