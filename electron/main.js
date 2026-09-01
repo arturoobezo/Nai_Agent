@@ -3175,7 +3175,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
         console.warn(`[NATIVE SD]: ${localFailureReason}`);
       } else {
         try {
-          console.log(`[NATIVE SD] Inferencia 100% local con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
+          console.log(`[NATIVE SD] Inferencia local acelerada con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
           const args = [
             '--diffusion-model', localDiffusion,
             '-p', cleanPrompt,
@@ -3185,7 +3185,8 @@ ipcMain.handle('media:generate-image-ai', async (event, {
             '--cfg-scale', String(effectiveCfg),
             '--sampling-method', effectiveSampler,
             '--scheduler', effectiveScheduler,
-            '--backend', 'cpu',
+            '--backend', 'te=cpu,vae=cpu,diffusion=vulkan0',
+            '--diffusion-fa',
             '--vae-tiling',
             '-o', finalImagePath,
           ];
@@ -3198,11 +3199,11 @@ ipcMain.handle('media:generate-image-ai', async (event, {
           }
 
           await new Promise((resCli, rejCli) => {
-            execFile(sdExe, args, { timeout: 300000 }, (err, stdout, stderr) => {
+            execFile(sdExe, args, { timeout: 600000 }, (err, stdout, stderr) => {
               if (err) {
                 const errOut = stderr || stdout || err.message;
                 if (/OutOfDeviceMemory|allocateMemory/i.test(errOut)) {
-                  localFailureReason = 'Memoria VRAM insuficiente en la GPU para el tamaño de modelo seleccionado.';
+                  localFailureReason = 'Memoria VRAM insuficiente en la GPU para el modelo seleccionado. Se recomienda usar la cuantización Q4_K_M para GPUs de 8GB.';
                 } else {
                   localFailureReason = `Error durante la ejecución local de sd-cli: ${err.message}`;
                 }
