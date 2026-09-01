@@ -3358,7 +3358,6 @@ ipcMain.handle('media:generate-image-ai', async (event, {
         }
       }
     }
-    }
 
     // 100% Local: Zero Cloud Fallback
     if (!generatedSuccess) {
