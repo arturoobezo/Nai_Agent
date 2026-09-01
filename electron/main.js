@@ -3474,40 +3474,10 @@ ipcMain.handle('media:generate-image-ai', async (event, {
       }
     }
 
-    // 2. Universal High-Fidelity FLUX / Pollinations Fallback (100% Free, Zero-install, Multiplatform)
-    if (!generatedSuccess) {
-      activeImageAbortController = new AbortController();
-      const signal = activeImageAbortController.signal;
-
-      try {
-        console.log(`[IMAGE ENGINE] Generando imagen en alta fidelidad con FLUX (${width}x${height})...`);
-        const pollSeed = seed === -1 ? Math.floor(Math.random() * 999999) : seed;
-        const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&enhance=true&seed=${pollSeed}`;
-
-        const pollRes = await fetch(pollUrl, { signal, headers: { 'User-Agent': 'NaiAgent/1.0' } });
-        if (pollRes.ok) {
-          const arrBuf = await pollRes.arrayBuffer();
-          const buf = Buffer.from(arrBuf);
-          if (buf.length > 2000) {
-            await fs.promises.writeFile(finalImagePath, buf);
-            generatedSuccess = true;
-            console.log(`[IMAGE ENGINE] Imagen generada con éxito y guardada en ${finalImagePath}`);
-          }
-        }
-      } catch (ePoll) {
-        if (ePoll.name === 'AbortError') {
-          return { success: false, error: 'Generación de imagen cancelada por el usuario' };
-        }
-        console.warn('[IMAGE ENGINE Pollinations Fallback Error]:', ePoll.message);
-      } finally {
-        activeImageAbortController = null;
-      }
-    }
-
     if (!generatedSuccess) {
       return {
         success: false,
-        error: localFailureReason || 'No se pudo completar la generación de imágenes.',
+        error: localFailureReason || 'Error en la inferencia local de GPU. Comprueba la memoria VRAM y los modelos en disco.',
       };
     }
 
