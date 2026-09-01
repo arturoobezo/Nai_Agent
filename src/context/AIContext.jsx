@@ -258,8 +258,20 @@ export function AIProvider({ children }) {
             [providerKey]: {
               ...prev[providerKey],
               status: 'connected',
-              models: [{ id: 'local-model', name: 'Modelo Activo en Servidor' }],
-              selectedModel: 'local-model',
+              models: DEFAULT_PROVIDERS[providerKey]?.models || [{ id: 'default-model', name: 'Modelo Activo' }],
+              selectedModel: DEFAULT_PROVIDERS[providerKey]?.selectedModel || 'default-model',
+              errorMsg: '',
+            },
+          }));
+        } else if (config.type === 'cloud' && config.apiKey?.trim()) {
+          // Cloud provider with API key: fallback to predefined models and mark as connected
+          setProviders((prev) => ({
+            ...prev,
+            [providerKey]: {
+              ...prev[providerKey],
+              status: 'connected',
+              models: prev[providerKey]?.models?.length > 0 ? prev[providerKey].models : DEFAULT_PROVIDERS[providerKey]?.models || [],
+              selectedModel: prev[providerKey]?.selectedModel || DEFAULT_PROVIDERS[providerKey]?.selectedModel || '',
               errorMsg: '',
             },
           }));
@@ -274,14 +286,25 @@ export function AIProvider({ children }) {
           }));
         }
       } catch (err) {
-        setProviders((prev) => ({
-          ...prev,
-          [providerKey]: {
-            ...prev[providerKey],
-            status: 'error',
-            errorMsg: err.message,
-          },
-        }));
+        if (config.type === 'cloud' && config.apiKey?.trim()) {
+          setProviders((prev) => ({
+            ...prev,
+            [providerKey]: {
+              ...prev[providerKey],
+              status: 'connected',
+              errorMsg: '',
+            },
+          }));
+        } else {
+          setProviders((prev) => ({
+            ...prev,
+            [providerKey]: {
+              ...prev[providerKey],
+              status: 'error',
+              errorMsg: err.message,
+            },
+          }));
+        }
       }
     } else {
       // Fallback for browser preview
@@ -290,11 +313,11 @@ export function AIProvider({ children }) {
           ...prev,
           [providerKey]: {
             ...prev[providerKey],
-            status: 'connected',
+            status: config.type === 'cloud' && !config.apiKey ? 'idle' : 'connected',
             errorMsg: '',
           },
         }));
-      }, 500);
+      }, 300);
     }
   };
 

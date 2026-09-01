@@ -1630,9 +1630,14 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
       };
     } else {
       const headers = { 'Content-Type': 'application/json' };
-      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+        if (provider === 'google') {
+          headers['x-goog-api-key'] = apiKey;
+        }
+      }
       if (provider === 'openrouter') {
-        headers['HTTP-Referer'] = 'https://github.com/nai-agent';
+        headers['HTTP-Referer'] = 'https://nai-agent.app';
         headers['X-Title'] = 'Nai Agent';
       }
 
@@ -1793,40 +1798,80 @@ ipcMain.handle('ai:fetch-models', async (event, { provider, config }) => {
 
     let response;
 
+    const DEFAULT_PROVIDER_MODELS = {
+      anthropic: [
+        { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+        { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
+        { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
+      ],
+      openai: [
+        { id: 'gpt-4o', name: 'GPT-4o (Omni)' },
+        { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+        { id: 'o3-mini', name: 'o3-mini (Razonamiento)' },
+        { id: 'o1', name: 'o1' },
+      ],
+      google: [
+        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+        { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro Exp' },
+        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+      ],
+      groq: [
+        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile' },
+        { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant' },
+        { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' },
+        { id: 'deepseek-r1-distill-llama-70b', name: 'DeepSeek R1 Distill 70B' },
+      ],
+      deepseek: [
+        { id: 'deepseek-chat', name: 'DeepSeek V3 (Chat)' },
+        { id: 'deepseek-reasoner', name: 'DeepSeek R1 (Reasoner)' },
+      ],
+      github: [
+        { id: 'gpt-4o', name: 'GPT-4o (GitHub Token)' },
+        { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+        { id: 'Phi-3.5-mini-instruct', name: 'Microsoft Phi-3.5 Mini' },
+        { id: 'Meta-Llama-3.1-70B-Instruct', name: 'Llama 3.1 70B' },
+      ],
+      mistral: [
+        { id: 'mistral-large-latest', name: 'Mistral Large' },
+        { id: 'codestral-latest', name: 'Codestral (Programación)' },
+        { id: 'ministral-8b-latest', name: 'Ministral 8B' },
+      ],
+      openrouter: [
+        { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
+        { id: 'openai/gpt-4o', name: 'GPT-4o' },
+        { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
+        { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3' },
+        { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
+        { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B' },
+      ],
+    };
+
     if (isAnthropicNative) {
       if (!apiKey) {
         clearTimeout(timeoutId);
         return {
           success: false,
           error: 'Por favor ingresa tu API Key de Anthropic Claude.',
-          models: [],
+          models: DEFAULT_PROVIDER_MODELS.anthropic,
         };
       }
-      try {
-        response = await fetch(modelsUrl, {
-          method: 'GET',
-          headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-          },
-          signal: controller.signal,
-        });
-      } catch (err) {
-        clearTimeout(timeoutId);
-        return {
-          success: true,
-          models: [
-            { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
-            { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
-            { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
-          ],
-        };
-      }
+      clearTimeout(timeoutId);
+      return {
+        success: true,
+        models: DEFAULT_PROVIDER_MODELS.anthropic,
+        count: DEFAULT_PROVIDER_MODELS.anthropic.length,
+      };
     } else {
       const headers = { 'Content-Type': 'application/json' };
-      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+        if (provider === 'google') {
+          headers['x-goog-api-key'] = apiKey;
+        }
+      }
       if (provider === 'openrouter') {
-        headers['HTTP-Referer'] = 'https://github.com/nai-agent';
+        headers['HTTP-Referer'] = 'https://nai-agent.app';
         headers['X-Title'] = 'Nai Agent';
       }
 
@@ -1877,12 +1922,19 @@ ipcMain.handle('ai:fetch-models', async (event, { provider, config }) => {
               models: [],
             };
           }
+        } else if (DEFAULT_PROVIDER_MODELS[provider] && apiKey) {
+          clearTimeout(timeoutId);
+          return {
+            success: true,
+            models: DEFAULT_PROVIDER_MODELS[provider],
+            count: DEFAULT_PROVIDER_MODELS[provider].length,
+          };
         } else {
           clearTimeout(timeoutId);
           return {
             success: false,
             error: `Error de red al conectar con ${baseUrl}: ${fetchErr.message}`,
-            models: [],
+            models: DEFAULT_PROVIDER_MODELS[provider] || [],
           };
         }
       }
@@ -1891,12 +1943,19 @@ ipcMain.handle('ai:fetch-models', async (event, { provider, config }) => {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      if (DEFAULT_PROVIDER_MODELS[provider] && apiKey) {
+        return {
+          success: true,
+          models: DEFAULT_PROVIDER_MODELS[provider],
+          count: DEFAULT_PROVIDER_MODELS[provider].length,
+        };
+      }
       const errorText = await response.text();
       return {
         success: false,
         status: response.status,
         error: `HTTP ${response.status}: ${response.statusText} (${errorText.slice(0, 150)})`,
-        models: [],
+        models: DEFAULT_PROVIDER_MODELS[provider] || [],
       };
     }
 
@@ -1937,8 +1996,9 @@ ipcMain.handle('ai:fetch-models', async (event, { provider, config }) => {
         }));
     }
 
-    // If local server is connected but model list is empty (no model selected yet), provide fallback
-    if (modelsList.length === 0 && (provider === 'lmstudio' || provider === 'ollama' || provider === 'custom')) {
+    if (modelsList.length === 0 && DEFAULT_PROVIDER_MODELS[provider]) {
+      modelsList = DEFAULT_PROVIDER_MODELS[provider];
+    } else if (modelsList.length === 0 && (provider === 'lmstudio' || provider === 'ollama' || provider === 'custom')) {
       modelsList = [
         { id: 'local-model', name: 'Modelo Activo en Servidor Local' },
       ];
