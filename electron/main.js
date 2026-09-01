@@ -3121,33 +3121,34 @@ ipcMain.handle('media:generate-image-ai', async (event, {
       }
     }
 
-    // 2. High-Fidelity Diffusion Engine (Krea 2 Turbo & Flux Klein)
+    // 2. High-Fidelity Diffusion Engine (Krea 2 Turbo / SDXL Turbo / Flux Multi-Tier Engine)
     if (!generatedSuccess) {
-      try {
-        const effectiveSeed = seed === -1 ? Math.floor(Math.random() * 9999999) : seed;
-        const qualityBoosters = 'masterpiece, 8k resolution, ultra-detailed, photorealistic, professional lighting, sharp focus';
-        const enrichedPrompt = cleanPrompt.includes('8k') || cleanPrompt.includes('realis') ? cleanPrompt : `${cleanPrompt}, ${qualityBoosters}`;
-        const encodedPrompt = encodeURIComponent(enrichedPrompt);
-        
-        // Exact model mapping (FLUX.1 is the native ultra-high fidelity transformer with authentic aspect ratio support)
-        const diffusionModel = 'flux';
-        const fluxUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${diffusionModel}&nologo=true&enhance=false&seed=${effectiveSeed}`;
+      const endpointsToTry = [
+        `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt + ', masterpiece, ultra-detailed, photorealistic, 8k resolution, cinematic lighting, sharp focus')}?width=${width}&height=${height}&model=turbo&nologo=true&seed=${seed === -1 ? Math.floor(Math.random() * 9999999) : seed}`,
+        `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt + ', 8k, detailed, photorealistic')}?width=${width}&height=${height}&nologo=true&seed=${seed === -1 ? Math.floor(Math.random() * 9999999) : seed}`,
+        `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed === -1 ? Math.floor(Math.random() * 9999999) : seed}`,
+      ];
 
-        const cloudRes = await fetch(fluxUrl, {
-          headers: { 'User-Agent': 'NaiAgent/1.0' },
-          signal: AbortSignal.timeout(45000),
-        });
+      for (const endpointUrl of endpointsToTry) {
+        try {
+          console.log(`[Diffusion Cloud] Generando imagen (${width}x${height})...`);
+          const cloudRes = await fetch(endpointUrl, {
+            headers: { 'User-Agent': 'NaiAgent/1.0' },
+            signal: AbortSignal.timeout(60000),
+          });
 
-        if (cloudRes.ok) {
-          const arrayBuffer = await cloudRes.arrayBuffer();
-          const imgBuffer = Buffer.from(arrayBuffer);
-          if (imgBuffer.length > 2000) {
-            await fs.promises.writeFile(finalImagePath, imgBuffer);
-            generatedSuccess = true;
+          if (cloudRes.ok) {
+            const arrayBuffer = await cloudRes.arrayBuffer();
+            const imgBuffer = Buffer.from(arrayBuffer);
+            if (imgBuffer.length > 3000) {
+              await fs.promises.writeFile(finalImagePath, imgBuffer);
+              generatedSuccess = true;
+              break;
+            }
           }
+        } catch (eCloud) {
+          console.warn('[Diffusion Cloud Endpoint Failed]:', eCloud.message);
         }
-      } catch (eCloud) {
-        console.warn('Image generation fallback error:', eCloud.message);
       }
     }
 
