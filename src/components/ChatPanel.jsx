@@ -1826,21 +1826,21 @@ ${workspaceContext}`
         ? `${systemInstruction}\n${skillsPrompt}`
         : systemInstruction;
 
-      // Check for attached or workspace images when user explicitly asks to inspect/analyze an image
+      // Universal multimodal image attachment (independent of language or strict regex)
       let attachedImages = [];
-      const isVisionInspection = !isImageMode && /(?:analiza|describe|qu[eé] (?:ves|hay|tiene|contiene)|lee|mira|observa|explica|interpreta|revisa|qu[eé] es)\b.*?(?:imagen|foto|captura|diagrama|screenshot|diseño|logo|grafico)/i.test(userText);
-      if (workspacePath && isVisionInspection) {
+      if (!isImageMode && workspacePath) {
         try {
           const detailed = await listWorkspaceFiles(false);
-          const imageFiles = (detailed.files || []).filter((f) => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.relativePath));
+          const imageFiles = (detailed.files || []).filter((f) => !f.isDirectory && /\.(png|jpg|jpeg|webp|gif)$/i.test(f.relativePath));
           if (imageFiles.length > 0) {
+            // Match explicitly mentioned filename or use the most relevant image
             const matchedImg = imageFiles.find((f) => userText.toLowerCase().includes(f.name.toLowerCase())) || imageFiles[0];
             const fullImgPath = matchedImg.path || (workspacePath + '/' + matchedImg.relativePath).replace(/\\/g, '/');
             if (window.electronAPI?.readImageDataUrl) {
               const imgRes = await window.electronAPI.readImageDataUrl({ filePath: fullImgPath });
               if (imgRes?.success && imgRes?.dataUrl) {
                 attachedImages.push(imgRes.dataUrl);
-                setAgentStatusStep(`👁️ Analizando imagen ${matchedImg.name} con Vision AI...`);
+                setAgentStatusStep(`👁️ Adjuntando imagen ${matchedImg.name} a la visión multimodal...`);
               }
             }
           }
