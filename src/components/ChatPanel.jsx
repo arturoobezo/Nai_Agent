@@ -1797,6 +1797,8 @@ REGLAS FUNDAMENTALES DEL MODO AGENTE:
    - EMITE PRIMERO las etiquetas <agent_tool name="create_file" path="index.html">, <agent_tool name="create_file" path="styles.css">, etc. con el código completo y funcional.
    - NUNCA escribas el código como bloques de markdown normales en tu texto si vas a crear los archivos. Emite SIEMPRE <agent_tool name="create_file"> directamente.
    - Después de cerrar todas las etiquetas </agent_tool>, escribe una breve explicación o resumen.
+5. CAPACIDADES DE VISIÓN MULTIMODAL:
+   - Tienes capacidad completa de visión multimodal para ver, examinar, describir y analizar cualquier imagen adjunta o ubicada en el espacio de trabajo cuando el usuario lo solicite.
 
 HERRAMIENTAS DISPONIBLES:
 1. CREAR ARCHIVOS:
@@ -1817,16 +1819,16 @@ contenido completo aquí
 </agent_tool>
 
 ${workspaceContext}`
-        : 'Eres Nai Agent, un asistente de Inteligencia Artificial conversacional, rápido, inteligente y servicial. Responde de forma clara, directa y amable al usuario.';
+        : 'Eres Nai Agent, un asistente de Inteligencia Artificial conversacional, rápido, inteligente y servicial. Tienes capacidad de visión multimodal para analizar imágenes cuando se te proporcionen. Responde de forma clara, directa y amable al usuario.';
 
       const skillsPrompt = isAgentMode && getActiveSkillsSystemPrompt ? getActiveSkillsSystemPrompt() : '';
       const fullSystemInstruction = skillsPrompt
         ? `${systemInstruction}\n${skillsPrompt}`
         : systemInstruction;
 
-      // Check for attached or workspace images ONLY when user explicitly asks to inspect/analyze an existing image
+      // Check for attached or workspace images when user explicitly asks to inspect/analyze an image
       let attachedImages = [];
-      const isVisionInspection = !isImageMode && /(analiza|describe|qu[eé] ves|qu[eé] hay en|lee|mira|observa|explica|interpreta)\s+(la\s+|el\s+)?(imagen|foto|captura|diagrama|screenshot|diseño)/i.test(userText);
+      const isVisionInspection = !isImageMode && /(?:analiza|describe|qu[eé] (?:ves|hay|tiene|contiene)|lee|mira|observa|explica|interpreta|revisa|qu[eé] es)\b.*?(?:imagen|foto|captura|diagrama|screenshot|diseño|logo|grafico)/i.test(userText);
       if (workspacePath && isVisionInspection) {
         try {
           const detailed = await listWorkspaceFiles(false);
