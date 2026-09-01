@@ -1564,6 +1564,7 @@ export default function ChatPanel() {
     if (!input.trim() || isLoading) return;
 
     const userText = input.trim();
+    console.log('[CHATPANEL] handleSend iniciado con texto:', userText);
     const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const userMessage = {
@@ -1576,6 +1577,7 @@ export default function ChatPanel() {
     };
 
     const newMessages = [...messages, userMessage];
+    console.log('[CHATPANEL] Actualizando sesión con nuevo mensaje de usuario. Total mensajes:', newMessages.length);
     updateCurrentSessionMessages(newMessages);
     setInput('');
 

@@ -1467,6 +1467,7 @@ ipcMain.handle('ai:abort-request', () => {
 });
 
 ipcMain.handle('ai:send-message', async (event, { provider, config, messages, model, temperature, max_tokens, webSearch = false, tavilyApiKey = '' }) => {
+  console.log(`[MAIN PROCESS AI] >>> Recibida petición ai:send-message. Proveedor: "${provider}", Modelo: "${model}", Mensajes recibidos: ${Array.isArray(messages) ? messages.length : typeof messages}`);
   try {
     let rawMessages = Array.isArray(messages)
       ? messages

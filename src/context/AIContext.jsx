@@ -333,6 +333,7 @@ export function AIProvider({ children }) {
       throw new Error(`Proveedor ${activeProvider} no configurado`);
     }
 
+    console.log('[FRONTEND AI] Enviando mensaje con proveedor:', activeProvider, 'Modelo:', customOptions.model || currentConfig.selectedModel, 'ElectronAPI disponible:', !!window.electronAPI?.sendMessage);
     if (window.electronAPI?.sendMessage) {
       const response = await window.electronAPI.sendMessage({
         provider: activeProvider,
@@ -347,6 +348,7 @@ export function AIProvider({ children }) {
         webSearch: !!customOptions.webSearch,
         tavilyApiKey: customOptions.tavilyApiKey || localStorage.getItem('nai_tavily_key') || '',
       });
+      console.log('[FRONTEND AI] Respuesta recibida del proceso principal:', response);
       return response;
     } else {
       // Simulated response in browser mode
