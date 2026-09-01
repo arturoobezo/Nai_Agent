@@ -2710,14 +2710,28 @@ async function detectSystemHardware() {
 }
 
 function getAppModelsDir() {
-  const baseDir = path.join(app.getPath('userData'), 'models');
+  const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  const candidateRoots = [
+    path.join(appData, 'NaiAgent', 'models'),
+    path.join(app.getPath('userData'), 'models'),
+    path.join(appData, 'nai-agent', 'models'),
+  ];
+
+  let baseDir = candidateRoots[0];
+  for (const c of candidateRoots) {
+    if (fs.existsSync(c)) {
+      baseDir = c;
+      break;
+    }
+  }
+
   const dirs = {
     root: baseDir,
     diffusion: path.join(baseDir, 'diffusion'),
     unet: path.join(baseDir, 'unet'),
     clip: path.join(baseDir, 'clip'),
     vae: path.join(baseDir, 'vae'),
-    bin: path.join(app.getPath('userData'), 'bin'),
+    bin: path.join(baseDir, '..', 'bin'),
   };
   Object.values(dirs).forEach((d) => {
     if (!fs.existsSync(d)) {
@@ -2731,22 +2745,21 @@ function getSdCliBinaryPath() {
   const isWin = process.platform === 'win32';
   const isMac = process.platform === 'darwin';
   const binaryName = isWin ? 'sd-cli.exe' : 'sd-cli';
+  const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
 
-  // 1. Packaged extraResources
-  if (app.isPackaged) {
-    const packagedBin = path.join(process.resourcesPath, 'bin', binaryName);
-    if (fs.existsSync(packagedBin)) return packagedBin;
+  const candidatePaths = [
+    path.join(appData, 'NaiAgent', 'bin', 'sdcpp', binaryName),
+    path.join(app.getPath('userData'), 'bin', 'sdcpp', binaryName),
+    path.join(appData, 'nai-agent', 'bin', 'sdcpp', binaryName),
+    path.join(process.resourcesPath, 'bin', binaryName),
+    path.join(__dirname, '../bin', isWin ? 'win' : isMac ? 'mac' : 'linux', binaryName),
+  ];
+
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) return p;
   }
 
-  // 2. User AppData / Home Directory
-  const userDataBin = path.join(app.getPath('userData'), 'bin', 'sdcpp', binaryName);
-  if (fs.existsSync(userDataBin)) return userDataBin;
-
-  // 3. Project dev bin
-  const devBin = path.join(__dirname, '../bin', isWin ? 'win' : isMac ? 'mac' : 'linux', binaryName);
-  if (fs.existsSync(devBin)) return devBin;
-
-  return userDataBin;
+  return candidatePaths[0];
 }
 
 const LOCAL_MODELS_CATALOG = {
@@ -3067,22 +3080,47 @@ ipcMain.handle('media:generate-image-ai', async (event, {
       console.warn('[LOCAL GPU Check]:', eLocal.message);
     }
 
-    // 1. Native Standalone Local Engine Fallback (sd-cli.exe in %APPDATA%/NaiAgent/bin/sdcpp)
+    // 1. Native Standalone Local Engine (sd-cli.exe with local GGUF models)
     if (!generatedSuccess) {
-      const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
-      const sdExe = path.join(appData, 'NaiAgent', 'bin', 'sdcpp', 'sd-cli.exe');
+      const sdExe = getSdCliBinaryPath();
       const modelsDirs = getAppModelsDir();
 
-      const localDiffusion = fs.existsSync(path.join(modelsDirs.diffusion, 'krea2_turbo-Q5_K_M.gguf'))
-        ? path.join(modelsDirs.diffusion, 'krea2_turbo-Q5_K_M.gguf')
-        : path.join(modelsDirs.diffusion, 'krea2_turbo-Q4_K_M.gguf');
+      // Find local diffusion model (Krea 2 Turbo / Flux)
+      let localDiffusion = '';
+      const candidateDiffusions = [
+        path.join(modelsDirs.diffusion, 'krea2_turbo-Q5_K_M.gguf'),
+        path.join(modelsDirs.diffusion, 'Krea-2-Turbo-Q4_K_M.gguf'),
+        path.join(modelsDirs.diffusion, 'krea2_turbo-Q4_K_M.gguf'),
+        path.join(modelsDirs.diffusion, 'krea2_turbo-Q8_0.gguf'),
+        path.join(modelsDirs.diffusion, 'flux-2-klein-4b-BF16.gguf'),
+      ];
+      for (const cd of candidateDiffusions) {
+        if (fs.existsSync(cd)) { localDiffusion = cd; break; }
+      }
 
-      const localVae = path.join(modelsDirs.vae, 'qwen_image_vae.safetensors');
-      const localClip = path.join(modelsDirs.clip, 'qwen3vl_4b_fp8_scaled.safetensors');
+      // Find local VAE and CLIP
+      let localVae = '';
+      const candidateVaes = [
+        path.join(modelsDirs.vae, 'qwen_image_vae.safetensors'),
+        path.join(modelsDirs.vae, 'ae.safetensors'),
+        path.join(modelsDirs.vae, 'flux2-vae.safetensors'),
+      ];
+      for (const cv of candidateVaes) {
+        if (fs.existsSync(cv)) { localVae = cv; break; }
+      }
 
-      if (fs.existsSync(sdExe) && fs.existsSync(localDiffusion)) {
+      let localClip = '';
+      const candidateClips = [
+        path.join(modelsDirs.clip, 'qwen3vl_4b_fp8_scaled.safetensors'),
+        path.join(modelsDirs.clip, 'qwen_3_4b_fp4_flux2.safetensors'),
+      ];
+      for (const cc of candidateClips) {
+        if (fs.existsSync(cc)) { localClip = cc; break; }
+      }
+
+      if (fs.existsSync(sdExe) && localDiffusion) {
         try {
-          console.log(`[NATIVE SD] Ejecutando inferencia local con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
+          console.log(`[NATIVE SD] Inferencia local con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
           const args = [
             '--diffusion-model', localDiffusion,
             '-p', cleanPrompt,
@@ -3092,13 +3130,15 @@ ipcMain.handle('media:generate-image-ai', async (event, {
             '--cfg-scale', String(effectiveCfg),
             '--sampling-method', effectiveSampler,
             '--scheduler', effectiveScheduler,
+            '--offload-to-cpu',
+            '--vae-tiling',
             '-o', finalImagePath,
           ];
 
-          if (fs.existsSync(localVae)) {
+          if (localVae) {
             args.push('--vae', localVae);
           }
-          if (fs.existsSync(localClip)) {
+          if (localClip) {
             args.push('--llm', localClip);
           }
 
