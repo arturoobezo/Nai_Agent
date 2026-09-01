@@ -3379,7 +3379,6 @@ ipcMain.handle('media:generate-image-ai', async (event, {
             '-t', '8',
             '--backend', 'te=cpu,vae=cpu,diffusion=vulkan0',
             '--diffusion-fa',
-            '--vae-tiling',
             '-o', finalImagePath,
           ];
 
