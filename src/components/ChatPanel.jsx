@@ -1535,24 +1535,16 @@ Ruta: ${workspacePath}
 Archivos existentes y texto detectado:
 ${fileList || '(Carpeta vacía)'}`;
 
-          // Load relevant text / subtitle / code / PDF files with safe memory bounds
+          // Load relevant text / subtitle / code files with safe memory bounds (PDFs only on explicit request)
           let filesContentSection = '';
-          const textFiles = (detailed.files || []).filter((f) => !f.isDirectory && /\.(srt|vtt|txt|md|js|jsx|ts|tsx|html|css|json|py|pdf)$/i.test(f.relativePath) && f.size < 800000);
+          const textFiles = (detailed.files || []).filter((f) => !f.isDirectory && /\.(srt|vtt|txt|md|js|jsx|ts|tsx|html|css|json|py|sql|sh|env)$/i.test(f.relativePath) && f.size < 800000);
           for (const tf of textFiles.slice(0, 6)) {
             if (filesContentSection.length > 14000) break;
             try {
-              if (tf.relativePath.toLowerCase().endsWith('.pdf')) {
-                const pdfRes = await readPdfText(tf.relativePath);
-                if (pdfRes.success && pdfRes.text) {
-                  const chunk = pdfRes.text.slice(0, 4500);
-                  filesContentSection += `\n\n--- DOCUMENTO PDF: ${tf.relativePath} (${pdfRes.numPages || 1} pág) ---\n${chunk}\n--- FIN PDF ---`;
-                }
-              } else {
-                const res = await readFileContent(tf.relativePath);
-                if (res.success && res.content) {
-                  const chunk = res.content.slice(0, 4500);
-                  filesContentSection += `\n\n--- ARCHIVO: ${tf.relativePath} ---\n${chunk}\n--- FIN ARCHIVO ---`;
-                }
+              const res = await readFileContent(tf.relativePath);
+              if (res.success && res.content) {
+                const chunk = res.content.slice(0, 4500);
+                filesContentSection += `\n\n--- ARCHIVO: ${tf.relativePath} ---\n${chunk}\n--- FIN ARCHIVO ---`;
               }
             } catch (e) {}
           }

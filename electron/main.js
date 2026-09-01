@@ -542,7 +542,11 @@ ipcMain.handle('fs:make-dir', async (event, { dirPath }) => {
 async function extractPdfTextAsync(filePath) {
   try {
     if (!filePath || !fs.existsSync(filePath)) return '';
+    if (!fs.existsSync(filePath)) return '';
+    const stat = await fs.promises.stat(filePath);
+    if (stat.size === 0) return '';
     const dataBuffer = await fs.promises.readFile(filePath);
+    if (!dataBuffer || dataBuffer.length === 0) return '';
     const pdfModule = require('pdf-parse');
     if (pdfModule.PDFParse) {
       const parser = new pdfModule.PDFParse({ data: dataBuffer });
@@ -554,7 +558,7 @@ async function extractPdfTextAsync(filePath) {
       if (data?.text?.trim()) return data.text.trim();
     }
   } catch (e) {
-    console.warn('PDF parsing error:', e.message);
+    // Graceful fallback on malformed or empty PDF
   }
   return '';
 }
