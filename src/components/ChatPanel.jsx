@@ -1052,6 +1052,7 @@ export default function ChatPanel() {
     autoTranscribeVideo,
     generateAIImage,
     detectSystemHardware,
+    openModelSetupModal,
   } = useWorkspace();
 
   const [input, setInput] = useState('');
@@ -2267,6 +2268,17 @@ ${workspaceContext}`;
                 </button>
               ))}
             </div>
+
+            {/* Models Setup & Download Modal Trigger */}
+            <button
+              type="button"
+              onClick={openModelSetupModal}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 active:scale-95 text-purple-700 dark:text-purple-300 border border-purple-500/40 font-bold text-[10px] transition-all ml-auto"
+              title="Descargar o configurar los modelos Krea 2 Turbo, CLIP y VAE"
+            >
+              <Download className="w-3 h-3 text-purple-500" />
+              <span>Modelos Krea 2</span>
+            </button>
           </div>
         )}
 

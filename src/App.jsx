@@ -16,11 +16,10 @@ import {
 
 function MainLayout() {
   const { theme, toggleTheme, isDark } = useTheme();
-  const { getModelStatus } = useWorkspace();
+  const { getModelStatus, isModelSetupOpen, openModelSetupModal, closeModelSetupModal } = useWorkspace();
   const [activeTab, setActiveTab] = useState('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
-  const [showModelSetup, setShowModelSetup] = useState(false);
 
   useEffect(() => {
     // Check if models are installed on first boot
@@ -30,7 +29,7 @@ function MainLayout() {
         if (res && res.allCoreInstalled === false) {
           const dismissed = sessionStorage.getItem('nai_models_setup_dismissed');
           if (!dismissed) {
-            setShowModelSetup(true);
+            openModelSetupModal();
           }
         }
       } catch (e) {}
@@ -176,9 +175,9 @@ function MainLayout() {
 
       {/* 5. First-Run Local AI Model Setup Modal */}
       <ModelSetupModal
-        isOpen={showModelSetup}
+        isOpen={isModelSetupOpen}
         onClose={() => {
-          setShowModelSetup(false);
+          closeModelSetupModal();
           sessionStorage.setItem('nai_models_setup_dismissed', '1');
         }}
       />

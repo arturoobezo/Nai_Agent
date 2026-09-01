@@ -639,6 +639,10 @@ export function WorkspaceProvider({ children }) {
     return { success: false, error: 'No disponible' };
   };
 
+  const [isModelSetupOpen, setIsModelSetupOpen] = useState(false);
+  const openModelSetupModal = () => setIsModelSetupOpen(true);
+  const closeModelSetupModal = () => setIsModelSetupOpen(false);
+
   const readFile = async (relativeOrFullPath) => {
     return await readFileContent(relativeOrFullPath);
   };
@@ -688,6 +692,10 @@ export function WorkspaceProvider({ children }) {
         detectSystemHardware,
         getModelStatus,
         downloadModel,
+        isModelSetupOpen,
+        setIsModelSetupOpen,
+        openModelSetupModal,
+        closeModelSetupModal,
       }}
     >
       {children}

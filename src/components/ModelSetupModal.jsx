@@ -49,6 +49,19 @@ export default function ModelSetupModal({ isOpen, onClose }) {
   const missingModels = coreModels.filter((m) => !m.installed);
   const allInstalled = missingModels.length === 0;
 
+  const handleDownloadSingle = async (modelId, name) => {
+    setIsDownloading(true);
+    setErrorMsg('');
+    setCurrentDownload({ name, percent: 0 });
+    const res = await downloadModel(modelId);
+    if (!res || !res.success) {
+      setErrorMsg(`Error al descargar ${name}: ${res?.error || 'Desconocido'}`);
+    }
+    await checkStatus();
+    setIsDownloading(false);
+    setCurrentDownload(null);
+  };
+
   const handleDownloadAll = async () => {
     setIsDownloading(true);
     setErrorMsg('');
@@ -130,9 +143,22 @@ export default function ModelSetupModal({ isOpen, onClose }) {
                     )}
                     <span className="text-xs font-semibold truncate">{mod.name}</span>
                   </div>
-                  <span className="text-[10px] font-mono opacity-70">
-                    {(mod.sizeBytes / (1024 * 1024 * 1024)).toFixed(2)} GB
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[10px] font-mono opacity-70">
+                      {(mod.sizeBytes / (1024 * 1024 * 1024)).toFixed(2)} GB
+                    </span>
+                    {!mod.installed && !isDownloading && (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadSingle(mod.id, mod.name)}
+                        className="p-1 rounded-lg bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white transition-all text-[10px] flex items-center gap-1 font-semibold px-2 border border-purple-500/30"
+                        title={`Descargar solo ${mod.name}`}
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Descargar</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Progress Bar if currently downloading */}

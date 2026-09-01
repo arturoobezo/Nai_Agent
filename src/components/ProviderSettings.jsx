@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Key,
   Eye,
@@ -18,9 +18,13 @@ import {
   GitBranch,
   Bot,
   BrainCircuit,
-  Flame
+  Flame,
+  Palette,
+  Download,
+  HardDrive
 } from 'lucide-react';
 import { useAI } from '../context/AIContext';
+import { useWorkspace } from '../context/WorkspaceContext';
 import { useTheme } from '../context/ThemeContext';
 
 export default function ProviderSettings() {
@@ -31,6 +35,19 @@ export default function ProviderSettings() {
     updateProviderConfig,
     checkConnectionAndFetchModels,
   } = useAI();
+
+  const { openModelSetupModal, getModelStatus } = useWorkspace();
+  const [localImageStatus, setLocalImageStatus] = useState(null);
+
+  useEffect(() => {
+    const fetchLocalStatus = async () => {
+      try {
+        const res = await getModelStatus();
+        setLocalImageStatus(res);
+      } catch (e) {}
+    };
+    fetchLocalStatus();
+  }, [openModelSetupModal]);
 
   const { isDark } = useTheme();
   const [showKey, setShowKey] = useState(false);
@@ -500,6 +517,43 @@ export default function ProviderSettings() {
         >
           <RefreshCw className={`w-3.5 h-3.5 ${current.status === 'checking' ? 'animate-spin' : ''}`} />
           <span>Probar Conexión & Consultar Modelos</span>
+        </button>
+      </div>
+
+      {/* Local AI Image Generation Models (Krea 2 Turbo, CLIP, VAE) */}
+      <div className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${
+        isDark ? 'bg-[#151522] border-[#242436]' : 'bg-white border-slate-200'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <Palette className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold">Generación Local de Imágenes</h3>
+              <p className="text-[10px] text-slate-400">Krea 2 Turbo + Qwen CLIP + Qwen VAE</p>
+            </div>
+          </div>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+            localImageStatus?.allCoreInstalled
+              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+          }`}>
+            {localImageStatus?.allCoreInstalled ? 'Listos' : 'Pendientes'}
+          </span>
+        </div>
+
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          Genera imágenes offline ultrarrápidas con aceleración GPU local. Si omitiste la descarga inicial o necesitas reinstalar los archivos del motor, puedes abrirlos aquí en cualquier momento.
+        </p>
+
+        <button
+          type="button"
+          onClick={openModelSetupModal}
+          className="w-full py-2 px-3 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-[0.98]"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>{localImageStatus?.allCoreInstalled ? 'Administrar Modelos de Imagen' : 'Descargar Modelos (Krea 2, CLIP, VAE)'}</span>
         </button>
       </div>
 
