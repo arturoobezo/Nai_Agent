@@ -68,11 +68,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Local AI Models & First-Run Manager
   getModelStatus: () => ipcRenderer.invoke('models:get-local-status'),
+  getActiveModel: () => ipcRenderer.invoke('models:get-active-model'),
+  setActiveModel: (modelId) => ipcRenderer.invoke('models:set-active-model', { modelId }),
   downloadModel: (payload) => ipcRenderer.invoke('models:download-model', payload),
+  cancelImageGeneration: () => ipcRenderer.invoke('media:cancel-image-generation'),
   onModelDownloadProgress: (callback) => {
     const sub = (e, data) => callback(data);
     ipcRenderer.on('models:download-progress', sub);
     return () => ipcRenderer.removeListener('models:download-progress', sub);
+  },
+  onImageChunkReady: (callback) => {
+    const sub = (e, data) => callback(data);
+    ipcRenderer.on('models:image-chunk-ready', sub);
+    return () => ipcRenderer.removeListener('models:image-chunk-ready', sub);
   },
 });
 

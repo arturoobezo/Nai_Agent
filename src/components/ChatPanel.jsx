@@ -1122,9 +1122,12 @@ export default function ChatPanel() {
 
   const handleStopGeneration = async () => {
     try {
+      if (window.electronAPI?.cancelImageGeneration) {
+        await window.electronAPI.cancelImageGeneration();
+      }
       await stopAIMessage();
       setIsLoading(false);
-      setAgentStatusStep('');
+      setAgentStatusStep('Generación detenida.');
     } catch (e) {}
   };
 
@@ -1491,6 +1494,43 @@ export default function ChatPanel() {
     }
     await generatePDFFile(pdfName, html, pdfName.replace('.pdf', ''));
   };
+
+  // Real-time chunk listener for progressive image streaming
+  useEffect(() => {
+    if (window.electronAPI?.onImageChunkReady) {
+      const unsub = window.electronAPI.onImageChunkReady((chunk) => {
+        console.log('[STREAMING IMAGE CHUNK]:', chunk);
+        updateCurrentSessionMessages((prev) => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg && lastMsg.role === 'assistant') {
+            const currentImages = lastMsg.generatedImages || [];
+            if (!currentImages.some((img) => img.path === chunk.imagePath || img.filename === chunk.filename)) {
+              const newImg = {
+                path: chunk.imagePath,
+                relativePath: chunk.relativePath,
+                filename: chunk.filename,
+                dataUrl: chunk.dataUrl,
+                prompt: chunk.prompt,
+                width: chunk.width,
+                height: chunk.height,
+              };
+              return prev.map((m, idx) =>
+                idx === prev.length - 1
+                  ? {
+                      ...m,
+                      generatedImages: [...currentImages, newImg],
+                      content: m.content ? m.content : `🎨 Imagen generada en tiempo real: **${chunk.filename}**`,
+                    }
+                  : m
+              );
+            }
+          }
+          return prev;
+        });
+      });
+      return () => unsub();
+    }
+  }, [updateCurrentSessionMessages]);
 
   const handleSend = async (e) => {
     e?.preventDefault();

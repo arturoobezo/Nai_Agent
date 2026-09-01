@@ -531,7 +531,9 @@ export default function ProviderSettings() {
             </div>
             <div>
               <h3 className="text-xs font-bold">Generación Local de Imágenes</h3>
-              <p className="text-[10px] text-slate-400">Krea 2 Turbo + Qwen CLIP + Qwen VAE</p>
+              <p className="text-[10px] text-slate-400">
+                Modelo activo: <strong className="text-purple-400">{localImageStatus?.models?.find(m => m.isActive)?.name || 'Krea 2 Turbo Q4_K_M'}</strong>
+              </p>
             </div>
           </div>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -539,12 +541,12 @@ export default function ProviderSettings() {
               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
               : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
           }`}>
-            {localImageStatus?.allCoreInstalled ? 'Listos' : 'Pendientes'}
+            {localImageStatus?.allCoreInstalled ? 'Listo (GPU)' : 'Descarga pendiente'}
           </span>
         </div>
 
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          Genera imágenes offline ultrarrápidas con aceleración GPU local. Si omitiste la descarga inicial o necesitas reinstalar los archivos del motor, puedes abrirlos aquí en cualquier momento.
+          Generación offline en GPU. Puedes cambiar libremente de cuantización (Q4, Q5, Q8 o SD 1.5 LCM) según la memoria de tu tarjeta gráfica.
         </p>
 
         <button
@@ -552,8 +554,8 @@ export default function ProviderSettings() {
           onClick={openModelSetupModal}
           className="w-full py-2 px-3 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-[0.98]"
         >
-          <Download className="w-3.5 h-3.5" />
-          <span>{localImageStatus?.allCoreInstalled ? 'Administrar Modelos de Imagen' : 'Descargar Modelos (Krea 2, CLIP, VAE)'}</span>
+          <Palette className="w-3.5 h-3.5" />
+          <span>Cambiar Cuantización o Administrar Modelos</span>
         </button>
       </div>
 

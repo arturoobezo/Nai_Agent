@@ -632,6 +632,20 @@ export function WorkspaceProvider({ children }) {
     return { allCoreInstalled: true, models: [] };
   };
 
+  const getActiveModel = async () => {
+    if (window.electronAPI?.getActiveModel) {
+      return await window.electronAPI.getActiveModel();
+    }
+    return 'krea2_turbo_q4';
+  };
+
+  const setActiveModel = async (modelId) => {
+    if (window.electronAPI?.setActiveModel) {
+      return await window.electronAPI.setActiveModel(modelId);
+    }
+    return { success: false };
+  };
+
   const downloadModel = async (modelId) => {
     if (window.electronAPI?.downloadModel) {
       return await window.electronAPI.downloadModel({ modelId });
@@ -691,6 +705,8 @@ export function WorkspaceProvider({ children }) {
         generateAIImage,
         detectSystemHardware,
         getModelStatus,
+        getActiveModel,
+        setActiveModel,
         downloadModel,
         isModelSetupOpen,
         setIsModelSetupOpen,

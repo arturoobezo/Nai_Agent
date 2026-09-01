@@ -2763,21 +2763,65 @@ function getSdCliBinaryPath() {
 }
 
 const LOCAL_MODELS_CATALOG = {
-  krea2_turbo: {
-    id: 'krea2_turbo',
-    name: 'Krea 2 Turbo Q4_K_M (Motor Principal)',
+  krea2_turbo_q4: {
+    id: 'krea2_turbo_q4',
+    name: 'Krea 2 Turbo Q4_K_M (Equilibrado / Rápido)',
+    description: 'Recomendado para GPUs de 6–8 GB VRAM. Ultrarrápido (5.7s/paso en GPU), balance óptimo.',
+    badge: 'Recomendado 6-8GB',
     type: 'diffusion',
     filename: 'Krea-2-Turbo-Q4_K_M.gguf',
-    sizeBytes: 7215545088,
+    altFilenames: ['krea2_turbo-Q4_K_M.gguf', 'Krea-2-Turbo-Q4_K_M.gguf'],
+    sizeBytes: 6882664448,
     url: 'https://huggingface.co/realrebelai/KREA-2_GGUFs/resolve/main/TURBO/Krea-2-Turbo-Q4_K_M.gguf',
     minVramGB: 6,
+    subfolder: 'diffusion',
+  },
+  krea2_turbo_q5: {
+    id: 'krea2_turbo_q5',
+    name: 'Krea 2 Turbo Q5_K_M (Mayor Fidelidad)',
+    description: 'Mayor fidelidad en microdetalles. Requiere 10GB+ VRAM en GPU o procesará en CPU.',
+    badge: 'Requiere 10GB+ VRAM',
+    type: 'diffusion',
+    filename: 'krea2_turbo-Q5_K_M.gguf',
+    altFilenames: ['krea2_turbo-Q5_K_M.gguf'],
+    sizeBytes: 8410714112,
+    url: 'https://huggingface.co/realrebelai/KREA-2_GGUFs/resolve/main/TURBO/krea2_turbo-Q5_K_M.gguf',
+    minVramGB: 10,
+    subfolder: 'diffusion',
+  },
+  krea2_turbo_q8: {
+    id: 'krea2_turbo_q8',
+    name: 'Krea 2 Turbo Q8_0 (Máxima Precisión 8K)',
+    description: 'Máxima precisión 8K sin pérdidas. Requiere GPU de gama alta (16GB+ VRAM).',
+    badge: 'Requiere 16GB+ VRAM',
+    type: 'diffusion',
+    filename: 'krea2_turbo-Q8_0.gguf',
+    altFilenames: ['krea2_turbo-Q8_0.gguf'],
+    sizeBytes: 12500000000,
+    url: 'https://huggingface.co/realrebelai/KREA-2_GGUFs/resolve/main/TURBO/krea2_turbo-Q8_0.gguf',
+    minVramGB: 16,
+    subfolder: 'diffusion',
+  },
+  sd15_turbo: {
+    id: 'sd15_turbo',
+    name: 'SD 1.5 LCM Turbo (Equipos Ligeros / Laptops)',
+    description: 'Ultra ligero (2GB). Ideal para computadoras portátiles sin GPU dedicada.',
+    badge: 'Ultra Ligero (2GB)',
+    type: 'diffusion',
+    filename: 'sd-v1-5-lcm-q4_0.gguf',
+    altFilenames: ['sd-v1-5-lcm-q4_0.gguf'],
+    sizeBytes: 2147483648,
+    url: 'https://huggingface.co/leejet/stable-diffusion.cpp-models/resolve/main/v1-5-pruned-emaonly-q4_0.gguf',
+    minVramGB: 2,
     subfolder: 'diffusion',
   },
   qwen_clip: {
     id: 'qwen_clip',
     name: 'Qwen 3 4B Text Encoder (Krea 2)',
+    description: 'Encoder de texto multimodal para entender prompts complejos.',
     type: 'clip',
     filename: 'qwen3vl_4b_fp8_scaled.safetensors',
+    altFilenames: ['qwen3vl_4b_fp8_scaled.safetensors'],
     sizeBytes: 2500000000,
     url: 'https://huggingface.co/Comfy-Org/Qwen3-VL/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors',
     minVramGB: 2,
@@ -2786,32 +2830,90 @@ const LOCAL_MODELS_CATALOG = {
   qwen_vae: {
     id: 'qwen_vae',
     name: 'Qwen Image VAE (Krea 2)',
+    description: 'Decodificador VAE de alta fidelidad para generar la imagen final.',
     type: 'vae',
     filename: 'qwen_image_vae.safetensors',
+    altFilenames: ['qwen_image_vae.safetensors'],
     sizeBytes: 335544320,
     url: 'https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors',
     minVramGB: 2,
     subfolder: 'vae',
   },
-  sd15_turbo: {
-    id: 'sd15_turbo',
-    name: 'SD 1.5 LCM Turbo (Equipos Ligeros)',
-    type: 'diffusion',
-    filename: 'sd-v1-5-lcm-q4_0.gguf',
-    sizeBytes: 2147483648,
-    url: 'https://huggingface.co/leejet/stable-diffusion.cpp-models/resolve/main/v1-5-pruned-emaonly-q4_0.gguf',
-    minVramGB: 2,
-    subfolder: 'diffusion',
-  },
 };
 
+let activeLocalModelId = 'krea2_turbo_q4';
+let activeSdChildProcess = null;
+
+function getHardwareProfilePath() {
+  return path.join(app.getPath('userData'), 'hardware_profile.json');
+}
+
+function loadSavedActiveModel() {
+  try {
+    const p = getHardwareProfilePath();
+    if (fs.existsSync(p)) {
+      const data = JSON.parse(fs.readFileSync(p, 'utf8'));
+      if (data.activeModelId && LOCAL_MODELS_CATALOG[data.activeModelId]) {
+        activeLocalModelId = data.activeModelId;
+      }
+    }
+  } catch (e) {}
+  return activeLocalModelId;
+}
+
+function saveHardwareProfile(data) {
+  try {
+    const p = getHardwareProfilePath();
+    const existing = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : {};
+    fs.writeFileSync(p, JSON.stringify({ ...existing, ...data }, null, 2));
+  } catch (e) {}
+}
+
 ipcMain.handle('system:detect-hardware', async () => {
-  return await detectSystemHardware();
+  const hw = await detectSystemHardware();
+  loadSavedActiveModel();
+  return { ...hw, activeModelId: activeLocalModelId };
+});
+
+ipcMain.handle('models:get-active-model', async () => {
+  return loadSavedActiveModel();
+});
+
+ipcMain.handle('models:set-active-model', async (event, { modelId }) => {
+  if (LOCAL_MODELS_CATALOG[modelId]) {
+    activeLocalModelId = modelId;
+    saveHardwareProfile({ activeModelId: modelId });
+    console.log(`[MODEL SELECTOR] Modelo activo cambiado a: ${modelId}`);
+    return { success: true, activeModelId: modelId };
+  }
+  return { success: false, error: 'Modelo no válido' };
+});
+
+ipcMain.handle('media:cancel-image-generation', async () => {
+  if (activeSdChildProcess && activeSdChildProcess.pid) {
+    const pid = activeSdChildProcess.pid;
+    console.log(`[CANCEL GENERATION] Terminando proceso sd-cli (PID: ${pid})...`);
+    try {
+      if (process.platform === 'win32') {
+        exec(`taskkill /pid ${pid} /t /f`, (err) => {
+          if (err) console.warn('[TASKKILL Warning]:', err.message);
+        });
+      } else {
+        process.kill(-pid, 'SIGKILL');
+      }
+    } catch (e) {
+      try { activeSdChildProcess.kill('SIGKILL'); } catch (e2) {}
+    }
+    activeSdChildProcess = null;
+    return { success: true, message: 'Generación cancelada exitosamente' };
+  }
+  return { success: true, message: 'No hay procesos activos' };
 });
 
 ipcMain.handle('models:get-local-status', async () => {
   const dirs = getAppModelsDir();
   const hw = await detectSystemHardware();
+  const activeMod = loadSavedActiveModel();
   const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
   const allModelRoots = [
     path.join(appData, 'NaiAgent', 'models'),
@@ -2826,16 +2928,7 @@ ipcMain.handle('models:get-local-status', async () => {
     let sizeOnDisk = 0;
     let targetFile = '';
 
-    // Check primary file and alternate filenames (for Krea 2 variants: Q5_K_M, Q4_K_M, Q8_0, etc.)
-    const filenamesToCheck = [mod.filename];
-    if (mod.id === 'krea2_turbo') {
-      filenamesToCheck.push(
-        'krea2_turbo-Q5_K_M.gguf',
-        'Krea-2-Turbo-Q4_K_M.gguf',
-        'krea2_turbo-Q4_K_M.gguf',
-        'krea2_turbo-Q8_0.gguf'
-      );
-    }
+    const filenamesToCheck = [mod.filename, ...(mod.altFilenames || [])];
 
     for (const rootDir of allModelRoots) {
       for (const fn of filenamesToCheck) {
@@ -2865,21 +2958,23 @@ ipcMain.handle('models:get-local-status', async () => {
     statusList.push({
       ...mod,
       installed,
+      isActive: mod.id === activeMod,
       sizeOnDisk,
       localPath: targetFile || path.join(dirs[mod.subfolder] || dirs.root, mod.filename),
       recommendedForHardware: hw.vramGB >= mod.minVramGB,
     });
   }
 
-  // Check if primary Krea 2 models are installed
-  const hasDiffusion = statusList.find((m) => m.id === 'krea2_turbo')?.installed;
+  // Check if primary core models are installed
+  const hasAnyDiffusion = statusList.some((m) => m.type === 'diffusion' && m.installed);
   const hasClip = statusList.find((m) => m.id === 'qwen_clip')?.installed;
   const hasVae = statusList.find((m) => m.id === 'qwen_vae')?.installed;
-  const allCoreInstalled = Boolean(hasDiffusion && hasClip && hasVae);
+  const allCoreInstalled = Boolean(hasAnyDiffusion && hasClip && hasVae);
 
   return {
     modelsDir: dirs.root,
     hardware: hw,
+    activeModelId: activeMod,
     allCoreInstalled,
     platform: process.platform,
     models: statusList,
@@ -3128,15 +3223,21 @@ ipcMain.handle('media:generate-image-ai', async (event, {
         path.join(app.getPath('userData'), 'models'),
       ];
 
-      // Find local diffusion model (Krea 2 Turbo Q4 / Q5 / Flux)
+      // 1. Find target model based on activeLocalModelId or available models
+      const activeMod = LOCAL_MODELS_CATALOG[activeLocalModelId];
       let localDiffusion = '';
-      const targetNames = [
+      const targetNames = [];
+      if (activeMod && activeMod.filename) {
+        targetNames.push(activeMod.filename, ...(activeMod.altFilenames || []));
+      }
+      targetNames.push(
         'Krea-2-Turbo-Q4_K_M.gguf',
         'krea2_turbo-Q4_K_M.gguf',
         'krea2_turbo-Q5_K_M.gguf',
         'krea2_turbo-Q8_0.gguf',
-        'flux-2-klein-4b-BF16.gguf',
-      ];
+        'sd-v1-5-lcm-q4_0.gguf'
+      );
+
       for (const d of allModelDirs) {
         for (const fn of targetNames) {
           const p = path.join(d, 'diffusion', fn);
@@ -3199,7 +3300,8 @@ ipcMain.handle('media:generate-image-ai', async (event, {
           }
 
           await new Promise((resCli, rejCli) => {
-            execFile(sdExe, args, { timeout: 600000 }, (err, stdout, stderr) => {
+            const child = execFile(sdExe, args, { timeout: 600000 }, (err, stdout, stderr) => {
+              activeSdChildProcess = null;
               if (err) {
                 const errOut = stderr || stdout || err.message;
                 if (/OutOfDeviceMemory|allocateMemory/i.test(errOut)) {
@@ -3217,12 +3319,45 @@ ipcMain.handle('media:generate-image-ai', async (event, {
               localFailureReason = 'El proceso de sd-cli finalizó pero el archivo de imagen no se guardó en disco.';
               rejCli(new Error(localFailureReason));
             });
+
+            activeSdChildProcess = child;
+
+            // Stream image notifications as each image finishes
+            if (child && child.stdout) {
+              child.stdout.on('data', async (chunk) => {
+                const text = chunk.toString();
+                const match = text.match(/save result image (\d+) to '([^']+)'/i);
+                if (match) {
+                  const savedImgPath = match[2];
+                  if (fs.existsSync(savedImgPath)) {
+                    try {
+                      const imgB = await fs.promises.readFile(savedImgPath);
+                      const dUrl = `data:image/png;base64,${imgB.toString('base64')}`;
+                      if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('models:image-chunk-ready', {
+                          imageIndex: parseInt(match[1], 10),
+                          imagePath: savedImgPath,
+                          relativePath: path.relative(targetDir, savedImgPath).replace(/\\/g, '/'),
+                          filename: path.basename(savedImgPath),
+                          dataUrl: dUrl,
+                          prompt: cleanPrompt,
+                          width,
+                          height,
+                        });
+                      }
+                    } catch (eSend) {}
+                  }
+                }
+              });
+            }
           });
         } catch (eNative) {
+          activeSdChildProcess = null;
           if (!localFailureReason) localFailureReason = eNative.message;
           console.warn('[NATIVE SD Execution Failed]:', eNative.message);
         }
       }
+    }
     }
 
     // 100% Local: Zero Cloud Fallback
