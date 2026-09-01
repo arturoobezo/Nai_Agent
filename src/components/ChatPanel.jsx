@@ -655,35 +655,32 @@ function GeneratedImageCard({ action }) {
 
   const targetPath = action.imagePath || action.path || action.filename || '';
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowMenu(false);
-      }
-    };
-    if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showMenu]);
+  const getResolvedPath = () => {
+    if (action.imagePath && fsPathIsAbsolute(action.imagePath)) return action.imagePath;
+    if (targetPath && fsPathIsAbsolute(targetPath)) return targetPath;
+    if (workspacePath && targetPath) return `${workspacePath}/${targetPath}`.replace(/\\/g, '/');
+    return targetPath;
+  };
+
+  function fsPathIsAbsolute(p) {
+    if (!p || typeof p !== 'string') return false;
+    return /^[a-zA-Z]:[\\/]/.test(p) || p.startsWith('/');
+  }
 
   useEffect(() => {
     if (action.dataUrl) {
       setDataUrlFallback(action.dataUrl);
       return;
     }
-    if (targetPath && window.electronAPI?.readImageDataUrl) {
-      let fullP = targetPath;
-      if (workspacePath && !targetPath.includes(':') && !targetPath.startsWith('/')) {
-        fullP = `${workspacePath}/${targetPath}`.replace(/\\/g, '/');
-      }
+    const fullP = getResolvedPath();
+    if (fullP && window.electronAPI?.readImageDataUrl) {
       window.electronAPI.readImageDataUrl({ filePath: fullP }).then((res) => {
         if (res?.success && res?.dataUrl) {
           setDataUrlFallback(res.dataUrl);
         }
       }).catch(() => {});
     }
-  }, [action, targetPath, workspacePath]);
+  }, [action, workspacePath]);
 
   const handleCopyPath = () => {
     const p = action.relativePath || action.path || action.imagePath || action.filename;
@@ -708,18 +705,20 @@ function GeneratedImageCard({ action }) {
       a.click();
       document.body.removeChild(a);
     } else if (targetPath) {
-      openSystemPath(targetPath);
+      openSystemPath(getResolvedPath());
     }
   };
 
   const handleOpenPath = () => {
     setShowMenu(false);
-    if (targetPath) {
-      openSystemPath(targetPath);
+    const fullP = getResolvedPath();
+    if (fullP) {
+      openSystemPath(fullP);
     }
   };
 
-  const imgSrc = dataUrlFallback || action.dataUrl || (targetPath ? `media-local://${encodeURIComponent(targetPath.replace(/\\/g, '/'))}` : '');
+  const resolvedFull = getResolvedPath();
+  const imgSrc = dataUrlFallback || action.dataUrl || (resolvedFull ? `media-local://${encodeURIComponent(resolvedFull.replace(/\\/g, '/'))}` : '');
 
   return (
     <div className={`my-2 p-2.5 rounded-2xl border flex flex-col gap-2 font-sans transition-all w-full overflow-visible shadow-lg relative ${
@@ -1078,42 +1077,41 @@ export default function ChatPanel() {
   }, []);
 
   const getDimensionsFromRatioAndQuality = (ratio = '1:1', quality = '1080p') => {
-    // Exact 64-multiple aspect ratio buckets (prevents geometric stretching and distortion in DiT models)
     const table = {
       '480p': {
         '1:1': { width: 512, height: 512 },
-        '16:9': { width: 640, height: 384 },
-        '9:16': { width: 384, height: 640 },
-        '4:3': { width: 576, height: 448 },
-        '3:4': { width: 448, height: 576 },
+        '16:9': { width: 640, height: 360 },
+        '9:16': { width: 360, height: 640 },
+        '4:3': { width: 640, height: 480 },
+        '3:4': { width: 480, height: 640 },
       },
       '720p': {
         '1:1': { width: 768, height: 768 },
         '16:9': { width: 1024, height: 576 },
         '9:16': { width: 576, height: 1024 },
-        '4:3': { width: 896, height: 640 },
-        '3:4': { width: 640, height: 896 },
+        '4:3': { width: 800, height: 600 },
+        '3:4': { width: 600, height: 800 },
       },
       '1080p': {
         '1:1': { width: 1024, height: 1024 },
-        '16:9': { width: 1280, height: 768 },
-        '9:16': { width: 768, height: 1280 },
-        '4:3': { width: 1152, height: 896 },
-        '3:4': { width: 896, height: 1152 },
+        '16:9': { width: 1280, height: 720 },
+        '9:16': { width: 720, height: 1280 },
+        '4:3': { width: 1024, height: 768 },
+        '3:4': { width: 768, height: 1024 },
       },
       '1440p': {
         '1:1': { width: 1408, height: 1408 },
-        '16:9': { width: 1664, height: 960 },
-        '9:16': { width: 960, height: 1664 },
-        '4:3': { width: 1536, height: 1152 },
-        '3:4': { width: 1152, height: 1536 },
+        '16:9': { width: 1536, height: 864 },
+        '9:16': { width: 864, height: 1536 },
+        '4:3': { width: 1440, height: 1080 },
+        '3:4': { width: 1080, height: 1440 },
       },
       '2048p': {
         '1:1': { width: 2048, height: 2048 },
-        '16:9': { width: 2048, height: 1152 },
-        '9:16': { width: 1152, height: 2048 },
-        '4:3': { width: 2048, height: 1536 },
-        '3:4': { width: 1536, height: 2048 },
+        '16:9': { width: 1920, height: 1080 },
+        '9:16': { width: 1080, height: 1920 },
+        '4:3': { width: 1600, height: 1200 },
+        '3:4': { width: 1200, height: 1600 },
       },
     };
     return table[quality]?.[ratio] || table['1080p'][ratio] || { width: 1024, height: 1024 };
@@ -1605,99 +1603,67 @@ ${fileList || '(Carpeta vacía)'}`;
             }
           } else {
             // Check if user is asking to generate an image (or if Image Mode is active)
-            const isDirectImageGen = isImageMode || /(genera|crea|dibuja|renderiza|haz|cr[eé]ame|dame|mu[eé]strame|saca)\s+(una\s+|un\s+|\d+\s+|dos\s+|tres\s+|cuatro\s+)?(imagen(es)?|im[aá]gen(es)?|foto(s)?|fotograf[ií]a(s)?|dibujo(s)?|logo(s)?|ilustraci[oó]n(es)?|retrato(s)?|paisaje(s)?|wallpaper(s)?)/i.test(userText);
+            const countExplicitMatch = userText.match(/\b(4|cuatro|four|3|tres|three|2|dos|two|1|una|uno|one)\s*(?:de\s+)?(?:im[aá]genes|fotos|fotograf[ií]as|ilustraciones|dibujos|variaciones|opciones)\b/i) ||
+                                       userText.match(/(?:haz|crea|genera|dame|saca|renderiza|quiero|pon|hazme|creame)\s*(?:unas|unos)?\s*(4|cuatro|four|3|tres|three|2|dos|two|1|una|uno|one)\b/i);
+
+            let detectedCount = imageCount || 1;
+            if (countExplicitMatch) {
+              const term = (countExplicitMatch[1] || '').toLowerCase();
+              if (term === '4' || term === 'cuatro' || term === 'four') detectedCount = 4;
+              else if (term === '3' || term === 'tres' || term === 'three') detectedCount = 3;
+              else if (term === '2' || term === 'dos' || term === 'two') detectedCount = 2;
+              else if (term === '1' || term === 'una' || term === 'uno' || term === 'one') detectedCount = 1;
+            }
+
+            const isDirectImageGen = isImageMode ||
+              /(genera|crea|dibuja|renderiza|haz|cr[eé]ame|dame|mu[eé]strame|saca|quiero)\s+(una\s+|un\s+|\d+\s+|dos\s+|tres\s+|cuatro\s+)?(imagen(es)?|im[aá]gen(es)?|foto(s)?|fotograf[ií]a(s)?|dibujo(s)?|logo(s)?|ilustraci[oó]n(es)?|retrato(s)?|paisaje(s)?|wallpaper(s)?)/i.test(userText) ||
+              /\b(4|3|2|1|cuatro|tres|dos|una)\s+(im[aá]genes|fotos|fotograf[ií]as|dibujos|ilustraciones)\b/i.test(userText);
 
             if (isDirectImageGen) {
               const { width, height } = getDimensionsFromRatioAndQuality(imageAspectRatio, imageQuality);
-              const countMatch = userText.match(/\b([1-4])\s*(im[aá]genes|fotos|fotograf[ií]as|ilustraciones|dibujos|imagenes)/i);
-              const wordCount = /\b(dos)\s+(im[aá]genes|fotos|imagenes)/i.test(userText) ? 2 : /\b(tres)\s+(im[aá]genes|fotos|imagenes)/i.test(userText) ? 3 : /\b(cuatro)\s+(im[aá]genes|fotos|imagenes)/i.test(userText) ? 4 : 1;
-              const detectedCount = countMatch ? parseInt(countMatch[1], 10) : wordCount;
-              const countToGen = Math.max(1, Math.min(4, detectedCount > 1 ? detectedCount : (imageCount || 1)));
+              const countToGen = Math.max(1, Math.min(4, detectedCount));
               setAgentStatusStep(`🎨 Generando ${countToGen > 1 ? `${countToGen} imágenes` : 'imagen'} (${imageAspectRatio}, ${imageQuality})...`);
 
               const generatedToolsXml = [];
               const generatedActions = [];
               let anySuccess = false;
 
-              const enrichPromptForDiffusion = (p, ratio) => {
-                let clean = p
-                  .replace(/^(genera|crea|dibuja|renderiza|haz|cr[eé]ame)\s+(una\s+|un\s+|la\s+|el\s+)?(imagen|foto|fotograf[ií]a|dibujo|logo|ilustraci[oó]n|retrato|paisaje|wallpaper)?(\s+de\s+|\s+con\s+|\s+sobre\s+)?/i, '')
-                  .replace(/^(imagen|foto|fotograf[ií]a)\s+(hiperrealista|realista|detallada)?\s+(de\s+)?/i, '')
-                  .trim();
-                if (!clean) clean = p.trim();
-
-                const replacements = [
-                  { es: /\bponle\b/gi, en: 'add' },
-                  { es: /\bagrega\b/gi, en: 'add' },
-                  { es: /\bañade\b/gi, en: 'add' },
-                  { es: /\bcambia\s+a\b/gi, en: 'change to' },
-                  { es: /\bgafas\s+de\s+sol\b/gi, en: 'stylish modern sunglasses' },
-                  { es: /\blentes\s+de\s+sol\b/gi, en: 'stylish sunglasses' },
-                  { es: /\blentes\b/gi, en: 'glasses' },
-                  { es: /\brojo(s)?\b/gi, en: 'vibrant red' },
-                  { es: /\bazul(es)?\b/gi, en: 'vibrant blue' },
-                  { es: /\bverde(s)?\b/gi, en: 'emerald green' },
-                  { es: /\bmarr[oó]n(es)?\b/gi, en: 'warm brown' },
-                  { es: /\bnegro(s)?\b/gi, en: 'deep black' },
-                  { es: /\bblanco(s)?\b/gi, en: 'pure white' },
-                  { es: /\brubio(s)?\b/gi, en: 'golden blonde' },
-                  { es: /\bcabello\b/gi, en: 'hair' },
-                  { es: /\bpelo\b/gi, en: 'hair' },
-                  { es: /\bhiperrealista\b/gi, en: 'hyperrealistic' },
-                  { es: /\brealista\b/gi, en: 'photorealistic' },
-                  { es: /\bun\s+ojo\s+humano\s+azul\b/gi, en: 'macro close-up of a human blue eye, detailed iris and pupil' },
-                  { es: /\bojo\s+humano\s+azul\b/gi, en: 'macro close-up of a human blue eye, detailed iris and pupil' },
-                  { es: /\bojos\s+humanos\s+azules\b/gi, en: 'close-up of human blue eyes, detailed irises and pupils' },
-                  { es: /\bojo\s+humano\b/gi, en: 'macro close-up of a human eye with detailed iris' },
-                  { es: /\bojo\b/gi, en: 'detailed eye with intricate iris' },
-                  { es: /\bojos\b/gi, en: 'detailed eyes with reflections' },
-                  { es: /\bhumano(s)?\b/gi, en: 'human' },
-                  { es: /\bgato(s)?\b/gi, en: 'fluffy domestic cat' },
-                  { es: /\bperro(s)?\b/gi, en: 'loyal dog' },
-                  { es: /\bmacro\b/gi, en: 'macro photography, extreme close-up, sharp focus' },
-                  { es: /\bretrato\b/gi, en: 'cinematic studio portrait, professional lighting' },
-                  { es: /\bpaisaje\b/gi, en: 'breathtaking scenic landscape, natural lighting' },
-                  { es: /\bfuturista\b/gi, en: 'futuristic sci-fi aesthetic, octane render' },
-                  { es: /\banime\b/gi, en: 'masterpiece anime art style, sharp cel shading' },
-                  { es: /\bde\s+un\b|\bde\s+una\b|\bde\s+el\b|\bde\s+la\b|\bde\s+los\b|\bde\s+las\b/gi, en: 'of' },
-                ];
-
-                let translated = clean;
-                replacements.forEach((d) => {
-                  translated = translated.replace(d.es, d.en);
-                });
-
-                return `${translated}, photorealistic, intricate detail, 8k resolution, sharp focus, masterpiece`;
-              };
-
-              const enhancedPrompt = enrichPromptForDiffusion(userText, imageAspectRatio);
+              // Clean natural prompt extraction
+              let cleanPrompt = userText
+                .replace(/^(genera|crea|dibuja|renderiza|haz|cr[eé]ame|dame|mu[eé]strame|saca|quiero)\s+(una\s+|un\s+|\d+\s+|dos\s+|tres\s+|cuatro\s+)?(imagen(es)?|im[aá]gen(es)?|foto(s)?|fotograf[ií]a(s)?|dibujo(s)?|logo(s)?|ilustraci[oó]n(es)?|retrato(s)?|paisaje(s)?|wallpaper(s)?)?\s*(de\s+|con\s+|sobre\s+)?/i, '')
+                .trim();
+              if (!cleanPrompt) cleanPrompt = userText.trim();
 
               for (let i = 0; i < countToGen; i++) {
                 if (countToGen > 1) setAgentStatusStep(`🎨 Generando imagen ${i + 1} de ${countToGen}...`);
                 else setAgentStatusStep(`🎨 Generando imagen...`);
+
                 const imgRes = await generateAIImage({
-                  prompt: enhancedPrompt,
+                  prompt: cleanPrompt,
                   width,
                   height,
                   seed: -1,
                 });
+
                 if (imgRes && imgRes.success) {
                   anySuccess = true;
                   const relP = imgRes.relativePath || imgRes.filename;
-                  generatedActions.push({
+                  const fullP = imgRes.imagePath || relP;
+                  const cardAction = {
                     tool: 'generate_image',
                     isImage: true,
                     path: relP,
-                    imagePath: imgRes.imagePath || relP,
+                    imagePath: fullP,
                     relativePath: relP,
                     dataUrl: imgRes.dataUrl || '',
                     filename: imgRes.filename || relP,
-                    prompt: userText,
+                    prompt: cleanPrompt,
                     width,
                     height,
-                  });
+                  };
+                  generatedActions.push(cardAction);
                   generatedToolsXml.push(
-                    `<agent_tool name="generate_image" path="${relP}" prompt="${userText}" width="${width}" height="${height}" />`
+                    `<agent_tool name="generate_image" path="${relP}" prompt="${cleanPrompt}" width="${width}" height="${height}" />`
                   );
                 }
               }
@@ -1708,8 +1674,9 @@ ${fileList || '(Carpeta vacía)'}`;
                 role: 'assistant',
                 content: anySuccess
                   ? `✨ He generado ${countToGen > 1 ? `${countToGen} imágenes` : 'la imagen'} exitosamente (${imageAspectRatio}, ${imageQuality}).\n\n${generatedToolsXml.join('\n\n')}`
-                  : `⚠️ No se pudo generar la imagen.`,
+                  : `⚠️ No se pudo generar la imagen. Verifica que el motor o los modelos estén listos.`,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                actions: generatedActions,
                 executedActions: generatedActions,
               };
 

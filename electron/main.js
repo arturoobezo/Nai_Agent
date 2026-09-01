@@ -3227,7 +3227,17 @@ app.whenReady().then(() => {
         return new Response(`Media file not found: ${normalizedPath}`, { status: 404 });
       }
 
-      return await net.fetch(pathToFileURL(normalizedPath).toString());
+      const ext = path.extname(normalizedPath).toLowerCase();
+      const mime = MIME_TYPES[ext] || 'image/png';
+      const fileBuf = await fs.promises.readFile(normalizedPath);
+      return new Response(fileBuf, {
+        status: 200,
+        headers: {
+          'Content-Type': mime,
+          'Content-Length': String(fileBuf.length),
+          'Cache-Control': 'public, max-age=3600',
+        },
+      });
     } catch (err) {
       console.error('Error serving media-local:', err);
       return new Response(`Error: ${err.message}`, { status: 500 });
