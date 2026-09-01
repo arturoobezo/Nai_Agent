@@ -94,10 +94,15 @@ function markdownToStyledHtml(text, title = 'Documento') {
 </html>`;
 }
 
-// Helper to parse tool calls and code blocks from message text
 function parseAgentMessage(text) {
   const actions = [];
   let cleanedText = text || '';
+
+  // 0. Filter thinking tags and common reasoning preambles from visible text
+  cleanedText = cleanedText
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/^(?:(?:Here'?s\s+(?:a\s+)?thinking\s+process|Thinking\s+Process|Thought\s+Process|Proceso\s+de\s+pensamiento)[\s\S]*?(?:\n\n---\n\n|\n\n(?=[A-Z#*¡¿])|(?:\n\n)?(?=```)|$))/i, '')
+    .trim();
 
   // 1. Parse both paired and self-closing <agent_tool> tags
   const toolTagRegex = /<agent_tool\b([^>]*?)(?:\/>|>([\s\S]*?)<\/agent_tool>)/gi;
@@ -1601,9 +1606,9 @@ export default function ChatPanel() {
     setAgentStatusStep('Analizando espacio de trabajo y ejecutando herramientas...');
 
     try {
-      // Get workspace file list context with extracted text summaries
+      // Get workspace file list context only when Agent Mode is active
       let workspaceContext = '';
-      if (workspacePath) {
+      if (isAgentMode && workspacePath) {
         try {
           const detailed = await listWorkspaceFiles(true);
           const fileList = (detailed.files || []).slice(0, 60).map((f) => {
@@ -1780,26 +1785,26 @@ ${fileList || '(Carpeta vacía)'}`;
         } catch (e) {}
       }
 
-      const systemInstruction = `Eres Nai Agent, un asistente de Inteligencia Artificial profesional, rápido y conversacional.
+      const systemInstruction = isAgentMode
+        ? `Eres Nai Agent, un asistente de Inteligencia Artificial profesional con capacidades de ejecución autónoma de archivos en el espacio de trabajo local del usuario.
 
-REGLA FUNDAMENTAL DE CONVERSACIÓN:
-- Si el usuario te está saludando (ej: 'hola', 'buenas'), haciendo preguntas de conocimiento, charlando o pidiendo consejos, RESPONDE EXCLUSIVAMENTE CON TEXTO DIRECTO Y AMABLE.
-- NUNCA generes archivos, ni inventes archivos como 'Saludo.txt' ni uses etiquetas <agent_tool> a menos que el usuario te pida EXPLÍCITAMENTE crear, modificar o guardar un archivo real en su equipo.
+REGLA DE CREACIÓN DE PROYECTOS, PÁGINAS WEB Y ARCHIVOS:
+- Cuando el usuario te pida crear una página web, landing page, proyecto o varios archivos:
+  1. EMITE PRIMERO las etiquetas <agent_tool name="create_file" path="index.html">, <agent_tool name="create_file" path="styles.css">, etc. con el código completo y funcional.
+  2. NUNCA escribas el código como bloques de código markdown normales \`\`\` en tu respuesta cuando el usuario quiera crear el proyecto en su espacio de trabajo. Emite SIEMPRE <agent_tool name="create_file"> directamente para que los archivos se creen en su equipo.
+  3. Después de cerrar todas las etiquetas </agent_tool>, escribe una breve explicación o instrucciones de uso.
 
-SOLO CUANDO EL USUARIO PIDA EXPLÍCITAMENTE CREAR, GUARDAR O EDITAR UN ARCHIVO:
-1. TRADUCIR O EDITAR SUBTÍTULOS / CÓDIGO:
-   - Lee el contenido del archivo y escribe el archivo completo y real sin textos simulados.
-
-2. CREAR O GUARDAR ARCHIVOS:
+HERRAMIENTAS DISPONIBLES:
+1. CREAR ARCHIVOS:
 <agent_tool name="create_file" path="nombre_archivo.ext">
 contenido completo aquí
 </agent_tool>
 
-3. CARPETAS Y ORGANIZACIÓN:
+2. CARPETAS Y ORGANIZACIÓN:
 <agent_tool name="make_dir" path="NombreCarpeta" />
 <agent_tool name="rename_or_move" old_path="archivo.ext" new_path="NombreCarpeta/archivo.ext" />
 
-4. GENERAR REPORTE PDF:
+3. GENERAR REPORTE PDF:
 <agent_tool name="generate_pdf" path="Reporte.pdf" title="Título del Reporte">
 <div class="max-w-4xl mx-auto p-6 font-sans text-slate-800">
   <h1 class="text-2xl font-bold mb-4">Título</h1>
@@ -1807,9 +1812,10 @@ contenido completo aquí
 </div>
 </agent_tool>
 
-${workspaceContext}`;
+${workspaceContext}`
+        : 'Eres Nai Agent, un asistente de Inteligencia Artificial conversacional, rápido, inteligente y servicial. Responde de forma clara, directa y amable al usuario.';
 
-      const skillsPrompt = getActiveSkillsSystemPrompt ? getActiveSkillsSystemPrompt() : '';
+      const skillsPrompt = isAgentMode && getActiveSkillsSystemPrompt ? getActiveSkillsSystemPrompt() : '';
       const fullSystemInstruction = skillsPrompt
         ? `${systemInstruction}\n${skillsPrompt}`
         : systemInstruction;
@@ -1861,9 +1867,28 @@ ${workspaceContext}`;
         const parsed = parseAgentMessage(rawContent);
 
         // Execute any autonomous actions if Agent Mode is active
+        let actionsToExecute = parsed.actions || [];
+
+        // Safety fallback: if in Agent Mode with file creation intent, and model output standard codeblocks without <agent_tool>, convert and create them automatically
+        if (isAgentMode && actionsToExecute.length === 0 && parsed.codeBlocks && parsed.codeBlocks.length > 0) {
+          const isFileCreationIntent = /(crea|genera|haz|construye|p[aá]gina|web|landing|proyecto|archivo|c[oó]digo|guarda)/i.test(userText);
+          if (isFileCreationIntent) {
+            for (const cb of parsed.codeBlocks) {
+              if (cb.filename && !cb.filename.endsWith('.txt') && cb.code && cb.code.trim()) {
+                actionsToExecute.push({
+                  type: 'tool_call',
+                  tool: 'create_file',
+                  path: cb.filename,
+                  content: cb.code,
+                });
+              }
+            }
+          }
+        }
+
         let executedActions = [];
-        if (isAgentMode && parsed.actions && parsed.actions.length > 0) {
-          executedActions = await executeAgentActions(parsed.actions);
+        if (isAgentMode && actionsToExecute.length > 0) {
+          executedActions = await executeAgentActions(actionsToExecute);
         }
 
         // Check if response was truncated by token length limit

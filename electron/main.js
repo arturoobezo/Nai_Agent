@@ -1793,33 +1793,26 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
       const data = await response.json();
       const choiceMsg = data.choices?.[0]?.message;
 
-      const textParts = [];
-
-      // 1. Check reasoning / thoughts
+      // 1. Extract reasoning metadata
       const reasoning =
         choiceMsg?.reasoning_content ||
         choiceMsg?.reasoning ||
         choiceMsg?.thought ||
         choiceMsg?.thinking ||
         '';
-      if (reasoning && typeof reasoning === 'string' && reasoning.trim()) {
-        textParts.push(reasoning.trim());
-      }
 
-      // 2. Check main content
+      // 2. Extract main content
       const content =
         choiceMsg?.content ||
         choiceMsg?.text ||
         data.choices?.[0]?.text ||
         (Array.isArray(data.candidates) ? data.candidates[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('\n') : '') ||
         '';
-      if (content && typeof content === 'string' && content.trim()) {
-        textParts.push(content.trim());
-      }
 
-      // 3. Check native tool_calls and convert to <agent_tool> format for execution
+      // 3. Extract native tool_calls and convert to <agent_tool> format for execution
+      let toolXml = '';
       if (Array.isArray(choiceMsg?.tool_calls) && choiceMsg.tool_calls.length > 0) {
-        const toolXml = choiceMsg.tool_calls
+        toolXml = choiceMsg.tool_calls
           .map((tc) => {
             let args = {};
             try {
@@ -1843,13 +1836,21 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
             return `<agent_tool name="${fnName}" ${attrs} />`;
           })
           .join('\n\n');
-
-        if (toolXml) {
-          textParts.push(toolXml);
-        }
       }
 
-      let messageContent = textParts.join('\n\n');
+      // Visible message text: prioritize content + toolXml. Only fall back to reasoning if content is totally empty.
+      const visibleParts = [];
+      if (content && typeof content === 'string' && content.trim()) {
+        visibleParts.push(content.trim());
+      }
+      if (toolXml) {
+        visibleParts.push(toolXml);
+      }
+      if (visibleParts.length === 0 && reasoning && typeof reasoning === 'string' && reasoning.trim()) {
+        visibleParts.push(reasoning.trim());
+      }
+
+      let messageContent = visibleParts.join('\n\n');
       const finishReason = data.choices?.[0]?.finish_reason || data.finish_reason || data.stop_reason || '';
 
       console.log(`[MAIN PROCESS AI] Extracción completada. Longitud: ${messageContent.length} caracteres, finishReason: "${finishReason}"`);
@@ -1861,6 +1862,7 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
       return {
         success: true,
         content: messageContent,
+        reasoning: reasoning || null,
         finishReason,
         usage: data.usage || null,
         model: data.model || model,
