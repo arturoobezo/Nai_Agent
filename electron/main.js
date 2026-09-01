@@ -407,6 +407,18 @@ function resolveProviderEndpoints(provider, config = {}) {
     };
   }
 
+  if (provider === 'ollama') {
+    const cleanBase = baseUrl.replace(/\/v1\/?$/, '');
+    return {
+      baseUrl: cleanBase,
+      chatUrl: `${cleanBase}/api/chat`,
+      modelsUrl: `${cleanBase}/api/tags`,
+      apiKey,
+      isAnthropicNative: false,
+      isOllamaNative: true,
+    };
+  }
+
   let chatUrl = '';
   if (baseUrl.includes('/chat/completions')) {
     chatUrl = baseUrl;
@@ -425,7 +437,7 @@ function resolveProviderEndpoints(provider, config = {}) {
     modelsUrl = `${baseUrl}/v1/models`;
   }
 
-  return { baseUrl, chatUrl, modelsUrl, apiKey, isAnthropicNative: false };
+  return { baseUrl, chatUrl, modelsUrl, apiKey, isAnthropicNative: false, isOllamaNative: false };
 }
 
 // ----------------------------------------------------
@@ -1694,6 +1706,42 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
       const hasMultimodal = finalMessages.some((m) => Array.isArray(m.content));
 
       const buildPayload = (usePlainStrings = false) => {
+        if (provider === 'ollama') {
+          const ollamaMsgs = finalMessages.map((m) => {
+            if (usePlainStrings || !Array.isArray(m.content)) {
+              return {
+                role: m.role,
+                content: typeof m.content === 'string'
+                  ? m.content
+                  : Array.isArray(m.content)
+                  ? m.content.map((p) => (p.type === 'text' ? p.text : '')).filter(Boolean).join('\n')
+                  : String(m.content || ''),
+              };
+            }
+            let textContent = '';
+            const rawImages = [];
+            for (const p of m.content) {
+              if (p.type === 'text') {
+                textContent += (textContent ? '\n' : '') + p.text;
+              } else if (p.type === 'image_url' && p.image_url?.url) {
+                const b64 = p.image_url.url.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+                rawImages.push(b64);
+              }
+            }
+            const item = { role: m.role, content: textContent };
+            if (rawImages.length > 0) item.images = rawImages;
+            return item;
+          });
+
+          const p = {
+            model: effectiveModel || 'qwen3.5:9b',
+            messages: ollamaMsgs,
+            stream: false,
+          };
+          if (temperature !== undefined) p.options = { temperature };
+          return p;
+        }
+
         const msgs = finalMessages.map((m) => {
           if (usePlainStrings || !Array.isArray(m.content)) {
             return {
@@ -1717,7 +1765,7 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
             provider === 'deepseek' ? 'deepseek-chat' :
             provider === 'mistral' ? 'mistral-large-latest' :
             provider === 'perplexity' ? 'sonar' :
-            provider === 'ollama' ? 'llama3:8b' :
+            provider === 'ollama' ? 'qwen3.5:9b' :
             provider === 'lmstudio' ? 'local-model' :
             'openai/gpt-4o-mini'
           ),
@@ -1798,7 +1846,7 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
       }
 
       const data = await response.json();
-      const choiceMsg = data.choices?.[0]?.message;
+      const choiceMsg = data.choices?.[0]?.message || data.message;
 
       // 1. Extract reasoning metadata
       const reasoning =
