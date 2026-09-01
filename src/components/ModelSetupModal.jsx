@@ -313,7 +313,7 @@ export default function ModelSetupModal({ isOpen, onClose }) {
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-500/20 flex-shrink-0">
           <span className="text-[11px] opacity-60">
-            Modelo activo actual: <strong>{LOCAL_MODELS_CATALOG[activeModelId]?.name || activeModelId}</strong>
+            Modelo activo actual: <strong>{modelsList.find((m) => m.id === activeModelId)?.name || activeModelId}</strong>
           </span>
           <button
             type="button"
