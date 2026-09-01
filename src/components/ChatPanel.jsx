@@ -94,6 +94,38 @@ function markdownToStyledHtml(text, title = 'Documento') {
 </html>`;
 }
 
+function findBestMatchingFile(filesList, queryText) {
+  if (!Array.isArray(filesList) || filesList.length === 0) return null;
+  const q = String(queryText || '').toLowerCase().trim();
+  const normalize = (s) => s.toLowerCase().replace(/[\s\-_.]+/g, '');
+
+  // 1. Exact full name match (e.g. "imagen1.jpeg", "reporte.pdf")
+  let match = filesList.find((f) => f.name && q.includes(f.name.toLowerCase()));
+  if (match) return match;
+
+  // 2. Base name match without extension (e.g. "imagen1" matches "imagen1.jpeg", "image1" matches "image1.png")
+  match = filesList.find((f) => {
+    const base = (f.name || '').replace(/\.[^/.]+$/, '').toLowerCase();
+    return base && base.length >= 2 && q.includes(base);
+  });
+  if (match) return match;
+
+  // 3. Normalized alphanumeric match (e.g. "imagen 1", "imagen_1", "image-1" -> "imagen1" or "image1")
+  const normQ = normalize(q);
+  match = filesList.find((f) => {
+    const normBase = normalize((f.name || '').replace(/\.[^/.]+$/, ''));
+    if (!normBase || normBase.length < 2) return false;
+    if (normQ.includes(normBase)) return true;
+    if (normBase.includes('imagen') && normQ.includes(normBase.replace('imagen', 'image'))) return true;
+    if (normBase.includes('image') && normQ.includes(normBase.replace('image', 'imagen'))) return true;
+    return false;
+  });
+  if (match) return match;
+
+  // 4. Default to first item if no specific name was detected
+  return filesList[0];
+}
+
 function parseAgentMessage(text) {
   const actions = [];
   let cleanedText = text || '';
@@ -1646,7 +1678,7 @@ ${fileList || '(Carpeta vacía)'}`;
           if (/(pdf|documento|informe|reporte|resum|analiz|explica|lee)/i.test(userText)) {
             const pdfFiles = (detailed.files || []).filter((f) => /\.pdf$/i.test(f.relativePath));
             if (pdfFiles.length > 0) {
-              const matchedPdf = pdfFiles.find((f) => userText.toLowerCase().includes(f.name.toLowerCase())) || pdfFiles[0];
+              const matchedPdf = findBestMatchingFile(pdfFiles, userText);
               const pdfRes = await readPdfText(matchedPdf.relativePath);
               if (pdfRes.success && pdfRes.text) {
                 workspaceContext += `\n\n[CONTENIDO COMPLETO EXTRAÍDO DEL PDF ${matchedPdf.relativePath} (${pdfRes.numPages || 1} Páginas)]:\n${pdfRes.text.slice(0, 6000)}`;
@@ -1660,7 +1692,7 @@ ${fileList || '(Carpeta vacía)'}`;
             const srtFiles = (detailed.files || []).filter((f) => /\.(srt|vtt)$/i.test(f.relativePath));
             if (srtFiles.length > 0) {
               const targetLang = /(espa[nñ]ol|al espa)/i.test(userText) ? 'es' : /(ingl[eé]s|english|al ingl)/i.test(userText) ? 'en' : 'es';
-              const sourceSrt = srtFiles.find((f) => userText.toLowerCase().includes(f.name.toLowerCase())) || srtFiles[0];
+              const sourceSrt = findBestMatchingFile(srtFiles, userText);
               const outName = sourceSrt.relativePath.replace(/\.(srt|vtt)$/i, `_${targetLang}.srt`);
               setAgentStatusStep(`🌐 Traduciendo subtítulos de ${sourceSrt.relativePath} a ${targetLang}...`);
               const transRes = await translateSubtitlesFile(sourceSrt.relativePath, targetLang, outName, '');
@@ -1771,7 +1803,7 @@ ${fileList || '(Carpeta vacía)'}`;
               if (isSubtitleRequest) {
                 const mediaFiles = (detailed.files || []).filter((f) => /\.(mp4|mkv|mov|avi|webm|mp3|wav|m4a)$/i.test(f.relativePath));
                 if (mediaFiles.length > 0) {
-                  const targetMedia = mediaFiles.find((f) => userText.toLowerCase().includes(f.name.toLowerCase())) || mediaFiles[0];
+                  const targetMedia = findBestMatchingFile(mediaFiles, userText);
                   const targetLang = /(ingl[eé]s|english|en ingl)/i.test(userText) ? 'en' : 'es';
                   setAgentStatusStep(`🎙️ Transcribiendo audio de ${targetMedia.relativePath} con Whisper...`);
                   const transRes = await autoTranscribeVideo(targetMedia.relativePath, targetLang);
@@ -1833,8 +1865,8 @@ ${workspaceContext}`
           const detailed = await listWorkspaceFiles(false);
           const imageFiles = (detailed.files || []).filter((f) => !f.isDirectory && /\.(png|jpg|jpeg|webp|gif)$/i.test(f.relativePath));
           if (imageFiles.length > 0) {
-            // Match explicitly mentioned filename or use the most relevant image
-            const matchedImg = imageFiles.find((f) => userText.toLowerCase().includes(f.name.toLowerCase())) || imageFiles[0];
+            // Match explicitly mentioned filename (exact, base name or normalized) or fallback to most relevant
+            const matchedImg = findBestMatchingFile(imageFiles, userText);
             const fullImgPath = matchedImg.path || (workspacePath + '/' + matchedImg.relativePath).replace(/\\/g, '/');
             if (window.electronAPI?.readImageDataUrl) {
               const imgRes = await window.electronAPI.readImageDataUrl({ filePath: fullImgPath });
