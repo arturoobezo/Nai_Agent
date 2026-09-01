@@ -1853,6 +1853,7 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
       if (visibleParts.length === 0 && reasoning && typeof reasoning === 'string' && reasoning.trim()) {
         visibleParts.push(reasoning.trim());
       }
+      const messageContent = visibleParts.join('\n\n');
 
       let finishReason = data.choices?.[0]?.finish_reason || data.finish_reason || data.candidates?.[0]?.finishReason || data.stop_reason || '';
       if (String(finishReason).toUpperCase() === 'MAX_TOKENS') finishReason = 'length';
@@ -1878,10 +1879,12 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
     }
   } catch (err) {
     const wasAborted = err.name === 'AbortError' || err.message?.includes('aborted');
+    const isInternal = err instanceof ReferenceError || err instanceof TypeError || err instanceof SyntaxError;
     return {
       success: false,
       aborted: wasAborted,
-      error: wasAborted ? 'Generación detenida.' : err.message,
+      isInternalError: isInternal,
+      error: wasAborted ? 'Generación detenida.' : isInternal ? `Error interno de la aplicación: ${err.message}` : err.message,
     };
   } finally {
     currentAIController = null;

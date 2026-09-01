@@ -2018,13 +2018,16 @@ ${workspaceContext}`
           },
         ]);
       } else if (finalErrorMessage) {
+        const isInternal = finalErrorMessage.toLowerCase().includes('error interno') || finalErrorMessage.includes('ReferenceError') || finalErrorMessage.includes('TypeError');
         updateCurrentSessionMessages([
           ...newMessages,
           {
             id: `err-${Date.now()}`,
             role: 'assistant',
             isError: true,
-            content: `⚠️ **Error del Proveedor (${activeConfig.name}):** ${finalErrorMessage}`,
+            content: isInternal
+              ? `⚠️ **Error Interno de la Aplicación:** ${finalErrorMessage.replace(/^Error interno de la aplicación:\s*/i, '')}`
+              : `⚠️ **Error del Proveedor (${activeConfig.name}):** ${finalErrorMessage}`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
