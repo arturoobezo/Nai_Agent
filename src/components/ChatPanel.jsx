@@ -1798,17 +1798,18 @@ ${fileList || '(Carpeta vacía)'}`;
               setAgentStatusStep('');
               return;
             } else {
-              // Check if user is asking for video/audio subtitles or transcription
-              const isSubtitleRequest = /(subt[ií]tulo|transcrib|transcripci[oó]n|audio a texto|sacar subt|crear subt|generar subt)/i.test(userText);
-              if (isSubtitleRequest) {
-                const mediaFiles = (detailed.files || []).filter((f) => /\.(mp4|mkv|mov|avi|webm|mp3|wav|m4a)$/i.test(f.relativePath));
+              // Check if user is asking for video/audio analysis, summarization, explanation, or subtitles/transcription
+              const isMediaAnalysisRequest = /(?:subt[ií]tulo|transcrib|transcripci[oó]n|audio a texto|sacar subt|crear subt|generar subt|analiz|resum|explica|qu[eé] (?:dice|trata|pasa|cuenta|hay|ocurre)|de qu[eé]|entiend|escucha|revisa|di[aá]logo|audio|video|trailer|pel[ií]cula|clip)/i.test(userText);
+              if (isMediaAnalysisRequest) {
+                const mediaFiles = (detailed.files || []).filter((f) => !f.isDirectory && /\.(mp4|mkv|mov|avi|webm|mp3|wav|m4a)$/i.test(f.relativePath));
                 if (mediaFiles.length > 0) {
                   const targetMedia = findBestMatchingFile(mediaFiles, userText);
                   const targetLang = /(ingl[eé]s|english|en ingl)/i.test(userText) ? 'en' : 'es';
-                  setAgentStatusStep(`🎙️ Transcribiendo audio de ${targetMedia.relativePath} con Whisper...`);
+                  setAgentStatusStep(`🎙️ Escuchando y transcribiendo ${targetMedia.name} con Whisper...`);
                   const transRes = await autoTranscribeVideo(targetMedia.relativePath, targetLang);
                   if (transRes.success && transRes.content) {
-                    workspaceContext += `\n\n[SUBTÍTULOS EXTRAÍDOS DE ${targetMedia.relativePath} (${targetLang})]:\n${transRes.content.slice(0, 1500)}`;
+                    console.log(`[MEDIA TRANSCRIPTION] Subtítulos/diálogos listos para ${targetMedia.name} (${transRes.content.length} chars)`);
+                    workspaceContext += `\n\n[CONTENIDO COMPLETO DE DIÁLOGOS Y AUDIO DE ${targetMedia.relativePath} EXTRAÍDO VIA WHISPER]:\n${transRes.content.slice(0, 12000)}`;
                   }
                 }
               }
