@@ -1816,11 +1816,35 @@ ${fileList || '(Carpeta vacía)'}`;
               }
             }
           }
+
+          // 5. Video cutting / trimming helper
+          if (/(cortar|corta|recortar|recorta|trim|extraer fragmento|partir)/i.test(userText) && /(video|clip|mp4|mkv|mov|avi)/i.test(userText)) {
+            const videoFiles = (detailed.files || []).filter((f) => /\.(mp4|mkv|mov|avi|webm)$/i.test(f.relativePath));
+            if (videoFiles.length > 0) {
+              const targetVideo = findBestMatchingFile(videoFiles, userText);
+              const timeMatches = userText.match(/(\d{1,2}:\d{2}(?::\d{2})?|\b\d+\s*s(?:eg(?:undos)?)?\b)/gi) || [];
+              let startTime = '00:00:00';
+              let endTime = '';
+              if (timeMatches.length >= 2) {
+                startTime = timeMatches[0];
+                endTime = timeMatches[1];
+              } else if (timeMatches.length === 1) {
+                endTime = timeMatches[0];
+              }
+              const ext = targetVideo.name.slice(targetVideo.name.lastIndexOf('.'));
+              const outName = `${targetVideo.name.replace(/\.[^.]+$/, '')}_recorte${ext}`;
+              setAgentStatusStep(`✂️ Recortando video ${targetVideo.name} (${startTime} -> ${endTime || 'final'})...`);
+              const cutRes = await cutVideo(targetVideo.relativePath, outName, startTime, endTime);
+              if (cutRes.success) {
+                workspaceContext += `\n\n[VIDEO RECORTADO CON ÉXITO]: Se ha generado el fragmento ${outName} desde ${startTime} hasta ${endTime || 'el final'}.`;
+              }
+            }
+          }
         } catch (e) {}
       }
 
       const systemInstruction = isAgentMode
-        ? `Eres Nai Agent, un asistente de Inteligencia Artificial profesional con capacidades de ejecución autónoma de archivos en el espacio de trabajo local del usuario.
+        ? `Eres Nai Agent, un asistente de Inteligencia Artificial profesional con capacidades de ejecución autónoma de archivos y multimedia en el espacio de trabajo local del usuario.
 
 REGLAS FUNDAMENTALES DEL MODO AGENTE:
 1. NO ANUNCIES LO QUE VAS A HACER NI PIDAS PERMISO: Ejecuta las acciones directamente usando las etiquetas <agent_tool>.
@@ -1833,9 +1857,9 @@ REGLAS FUNDAMENTALES DEL MODO AGENTE:
    - Después de cerrar todas las etiquetas </agent_tool>, escribe una breve explicación o resumen.
 5. CAPACIDADES DE VISIÓN MULTIMODAL Y AUDIO/VIDEO:
    - Tienes capacidad completa de visión multimodal para ver, examinar, describir y analizar cualquier imagen adjunta o ubicada en el espacio de trabajo.
-   - Tienes acceso al contenido de diálogos y audio extraído de los videos del espacio de trabajo cuando el usuario lo solicite.
+   - Tienes herramientas para cortar video, unir videos, extraer audio, transcribir y generar subtítulos automáticamente.
 
-HERRAMIENTAS DISPONIBLES:
+HERRAMIENTAS DISPONIBLES (EMITE ESTAS ETIQUETAS DIRECTAMENTE):
 1. CREAR ARCHIVOS:
 <agent_tool name="create_file" path="nombre_archivo.ext">
 contenido completo aquí
@@ -1845,7 +1869,19 @@ contenido completo aquí
 <agent_tool name="make_dir" path="NombreCarpeta" />
 <agent_tool name="rename_or_move" old_path="archivo.ext" new_path="NombreCarpeta/archivo.ext" />
 
-3. GENERAR REPORTE PDF:
+3. CORTAR Y RECORTAR VIDEO:
+<agent_tool name="cut_video" path="video.mp4" start="00:00:10" end="00:00:45" output="video_recortado.mp4" />
+
+4. UNIR / COMBINAR VIDEOS:
+<agent_tool name="concat_videos" inputs="video1.mp4,video2.mp4" output="Video_Unido.mp4" />
+
+5. EXTRAER AUDIO DE VIDEO:
+<agent_tool name="extract_audio" path="video.mp4" output="audio.mp3" />
+
+6. GENERAR SUBTÍTULOS / TRANSCRIBIR AUDIO O VIDEO:
+<agent_tool name="auto_transcribe" path="video.mp4" lang="es" />
+
+7. GENERAR REPORTE PDF:
 <agent_tool name="generate_pdf" path="Reporte.pdf" title="Título del Reporte">
 <div class="max-w-4xl mx-auto p-6 font-sans text-slate-800">
   <h1 class="text-2xl font-bold mb-4">Título</h1>
@@ -1854,7 +1890,7 @@ contenido completo aquí
 </agent_tool>
 
 ${workspaceContext}`
-        : `Eres Nai Agent, un asistente de Inteligencia Artificial conversacional, rápido, inteligente y servicial. Tienes capacidad de visión multimodal para analizar imágenes y capacidad para analizar el contenido y diálogos de videos y archivos locales proporcionados en el contexto del espacio de trabajo. Responde de forma clara, directa y amable al usuario.${workspaceContext ? '\n\n' + workspaceContext : ''}`;
+        : `Eres Nai Agent, un asistente de Inteligencia Artificial conversacional, rápido, inteligente y servicial. Tienes capacidad de visión multimodal para analizar imágenes y capacidad para analizar, cortar, unir y transcribir videos y archivos locales proporcionados en el contexto del espacio de trabajo. Responde de forma clara, directa y amable al usuario.${workspaceContext ? '\n\n' + workspaceContext : ''}`;
 
       const skillsPrompt = isAgentMode && getActiveSkillsSystemPrompt ? getActiveSkillsSystemPrompt() : '';
       const fullSystemInstruction = skillsPrompt

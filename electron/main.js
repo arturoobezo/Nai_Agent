@@ -1882,6 +1882,15 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
               return `<agent_tool name="make_dir" path="${args.path || args.target || ''}" />`;
             } else if (fnName === 'rename_or_move' || fnName === 'move_file' || fnName === 'rename' || fnName === 'move') {
               return `<agent_tool name="rename_or_move" old_path="${args.old_path || args.oldPath || args.src || args.from || ''}" new_path="${args.new_path || args.newPath || args.dest || args.to || ''}" />`;
+            } else if (fnName === 'cut_video' || fnName === 'trim_video' || fnName === 'cut') {
+              return `<agent_tool name="cut_video" path="${args.path || args.video_path || args.input || ''}" start="${args.start || args.start_time || '00:00:00'}" end="${args.end || args.end_time || ''}" output="${args.output || args.output_path || ''}" />`;
+            } else if (fnName === 'concat_videos' || fnName === 'join_videos' || fnName === 'merge_videos') {
+              const inps = Array.isArray(args.inputs || args.videos) ? (args.inputs || args.videos).join(',') : (args.inputs || args.videos || '');
+              return `<agent_tool name="concat_videos" inputs="${inps}" output="${args.output || args.output_path || 'Video_Unido.mp4'}" />`;
+            } else if (fnName === 'extract_audio') {
+              return `<agent_tool name="extract_audio" path="${args.path || args.video_path || ''}" output="${args.output || args.output_path || 'audio.mp3'}" />`;
+            } else if (fnName === 'auto_transcribe' || fnName === 'transcribe') {
+              return `<agent_tool name="auto_transcribe" path="${args.path || args.video_path || ''}" lang="${args.lang || 'es'}" />`;
             } else if (fnName === 'generate_pdf' || fnName === 'create_pdf' || fnName === 'pdf') {
               return `<agent_tool name="generate_pdf" path="${args.path || 'Reporte.pdf'}" title="${args.title || 'Documento'}">\n${args.content || ''}\n</agent_tool>`;
             }
@@ -2275,8 +2284,13 @@ ipcMain.handle('media:cut-video', async (event, { videoPath, outputPath, startTi
     if (endTime) timeArgs += `-to ${endTime} `;
     else if (duration) timeArgs += `-t ${duration} `;
 
-    const cmd = `ffmpeg -y ${timeArgs}-i "${videoPath}" -c copy "${finalOutput}"`;
-    await execAsync(cmd);
+    let cmd = `ffmpeg -y ${timeArgs}-i "${videoPath}" -c copy "${finalOutput}"`;
+    try {
+      await execAsync(cmd);
+    } catch (eCopy) {
+      cmd = `ffmpeg -y ${timeArgs}-i "${videoPath}" -c:v libx264 -preset fast -c:a aac "${finalOutput}"`;
+      await execAsync(cmd);
+    }
 
     return {
       success: true,
