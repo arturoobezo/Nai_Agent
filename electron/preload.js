@@ -78,6 +78,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('models:download-progress', sub);
     return () => ipcRenderer.removeListener('models:download-progress', sub);
   },
+  onImageGenerationProgress: (callback) => {
+    const sub = (e, data) => callback(data);
+    ipcRenderer.on('models:generation-progress', sub);
+    return () => ipcRenderer.removeListener('models:generation-progress', sub);
+  },
   onImageChunkReady: (callback) => {
     const sub = (e, data) => callback(data);
     ipcRenderer.on('models:image-chunk-ready', sub);

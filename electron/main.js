@@ -3245,7 +3245,7 @@ ipcMain.handle('models:download-model', async (event, { modelId }) => {
 const MODEL_INFERENCE_PRESETS = {
   krea2_turbo: {
     name: 'Krea 2 Turbo',
-    steps: 8,
+    steps: 4,
     cfgScale: 1.0,
     sampler: 'euler',
     scheduler: 'simple',
@@ -3256,7 +3256,7 @@ const MODEL_INFERENCE_PRESETS = {
   },
   sd15_turbo: {
     name: 'SD 1.5 LCM Turbo',
-    steps: 5,
+    steps: 4,
     cfgScale: 1.8,
     sampler: 'lcm',
     scheduler: 'karras',
@@ -3416,6 +3416,26 @@ ipcMain.handle('media:generate-image-ai', async (event, {
 
             const processChunk = async (chunk) => {
               const text = chunk.toString();
+
+              // Parse live diffusion steps (e.g. |==> 1/8 - 12.5s/it)
+              const stepMatch = text.match(/\|\s*([0-9]+)\/([0-9]+)\s*-\s*([0-9.]+)s\/it/);
+              if (stepMatch && mainWindow && !mainWindow.isDestroyed()) {
+                const cur = parseInt(stepMatch[1], 10);
+                const tot = parseInt(stepMatch[2], 10);
+                const pct = Math.round((cur / tot) * 90);
+                mainWindow.webContents.send('models:generation-progress', {
+                  step: cur,
+                  totalSteps: tot,
+                  percent: pct,
+                  message: `🎨 Procesando paso ${cur} de ${tot} (${pct}%)...`,
+                });
+              } else if ((text.includes('decoding') || text.includes('decode_first_stage')) && mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('models:generation-progress', {
+                  message: '✨ Decodificando imagen en alta fidelidad...',
+                  percent: 95,
+                });
+              }
+
               const match = text.match(/save result image (\d+) to '([^']+)'/i);
               if (match) {
                 const savedImgPath = match[2];

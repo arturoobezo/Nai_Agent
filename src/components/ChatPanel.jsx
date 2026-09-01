@@ -1597,6 +1597,18 @@ export default function ChatPanel() {
     }
   }, [updateCurrentSessionMessages]);
 
+  // Live generation step progress listener
+  useEffect(() => {
+    if (window.electronAPI?.onImageGenerationProgress) {
+      const unsub = window.electronAPI.onImageGenerationProgress((data) => {
+        if (data?.message) {
+          setAgentStatusStep(data.message);
+        }
+      });
+      return () => unsub();
+    }
+  }, []);
+
   const handleSend = async (e) => {
     e?.preventDefault();
     if (!input.trim() || isUserSubmitting || isLoading) return;
@@ -1893,8 +1905,11 @@ contenido completo aquí
 </div>
 </agent_tool>
 
+8. GENERAR IMAGEN CON IA:
+<agent_tool name="generate_image" prompt="descripción detallada y visual de la imagen en inglés o español" />
+
 ${workspaceContext}`
-        : `Eres Nai Agent, un asistente de Inteligencia Artificial conversacional, rápido, inteligente y servicial. Tienes capacidad de visión multimodal para analizar imágenes y capacidad para analizar, cortar, unir y transcribir videos y archivos locales proporcionados en el contexto del espacio de trabajo. Responde de forma clara, directa y amable al usuario.${workspaceContext ? '\n\n' + workspaceContext : ''}`;
+        : `Eres Nai Agent, un asistente de Inteligencia Artificial conversacional, rápido, inteligente y servicial. Tienes capacidad de visión multimodal para analizar imágenes y capacidad para generar imágenes, analizar, cortar, unir y transcribir videos y archivos locales proporcionados en el contexto del espacio de trabajo. Responde de forma clara, directa y amable al usuario.${workspaceContext ? '\n\n' + workspaceContext : ''}`;
 
       const skillsPrompt = isAgentMode && getActiveSkillsSystemPrompt ? getActiveSkillsSystemPrompt() : '';
       const fullSystemInstruction = skillsPrompt
