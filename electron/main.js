@@ -1792,21 +1792,67 @@ ipcMain.handle('ai:send-message', async (event, { provider, config, messages, mo
 
       const data = await response.json();
       const choiceMsg = data.choices?.[0]?.message;
-      let messageContent = choiceMsg?.content ?? '';
 
-      // Exhaustive extraction of reasoning, thoughts, and text fields
-      if (!messageContent) {
-        messageContent =
-          choiceMsg?.reasoning_content ||
-          choiceMsg?.reasoning ||
-          choiceMsg?.thought ||
-          choiceMsg?.thinking ||
-          choiceMsg?.text ||
-          data.choices?.[0]?.text ||
-          '';
+      const textParts = [];
+
+      // 1. Check reasoning / thoughts
+      const reasoning =
+        choiceMsg?.reasoning_content ||
+        choiceMsg?.reasoning ||
+        choiceMsg?.thought ||
+        choiceMsg?.thinking ||
+        '';
+      if (reasoning && typeof reasoning === 'string' && reasoning.trim()) {
+        textParts.push(reasoning.trim());
       }
 
+      // 2. Check main content
+      const content =
+        choiceMsg?.content ||
+        choiceMsg?.text ||
+        data.choices?.[0]?.text ||
+        (Array.isArray(data.candidates) ? data.candidates[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('\n') : '') ||
+        '';
+      if (content && typeof content === 'string' && content.trim()) {
+        textParts.push(content.trim());
+      }
+
+      // 3. Check native tool_calls and convert to <agent_tool> format for execution
+      if (Array.isArray(choiceMsg?.tool_calls) && choiceMsg.tool_calls.length > 0) {
+        const toolXml = choiceMsg.tool_calls
+          .map((tc) => {
+            let args = {};
+            try {
+              args = JSON.parse(tc.function?.arguments || '{}');
+            } catch (e) {
+              args = {};
+            }
+            const fnName = (tc.function?.name || 'action').toLowerCase();
+            if (fnName === 'create_file' || fnName === 'write_file' || fnName === 'save_file') {
+              return `<agent_tool name="create_file" path="${args.path || args.target || ''}">\n${args.content || ''}\n</agent_tool>`;
+            } else if (fnName === 'make_dir' || fnName === 'create_folder' || fnName === 'mkdir') {
+              return `<agent_tool name="make_dir" path="${args.path || args.target || ''}" />`;
+            } else if (fnName === 'rename_or_move' || fnName === 'move_file' || fnName === 'rename' || fnName === 'move') {
+              return `<agent_tool name="rename_or_move" old_path="${args.old_path || args.oldPath || args.src || args.from || ''}" new_path="${args.new_path || args.newPath || args.dest || args.to || ''}" />`;
+            } else if (fnName === 'generate_pdf' || fnName === 'create_pdf' || fnName === 'pdf') {
+              return `<agent_tool name="generate_pdf" path="${args.path || 'Reporte.pdf'}" title="${args.title || 'Documento'}">\n${args.content || ''}\n</agent_tool>`;
+            }
+            const attrs = Object.entries(args)
+              .map(([k, v]) => `${k}="${String(v).replace(/"/g, '&quot;')}"`)
+              .join(' ');
+            return `<agent_tool name="${fnName}" ${attrs} />`;
+          })
+          .join('\n\n');
+
+        if (toolXml) {
+          textParts.push(toolXml);
+        }
+      }
+
+      let messageContent = textParts.join('\n\n');
       const finishReason = data.choices?.[0]?.finish_reason || data.finish_reason || data.stop_reason || '';
+
+      console.log(`[MAIN PROCESS AI] Extracción completada. Longitud: ${messageContent.length} caracteres, finishReason: "${finishReason}"`);
 
       if (!messageContent) {
         console.warn('[AI Warning]: Respuesta vacía del proveedor. Objeto recibido completo:', JSON.stringify(data, null, 2));
