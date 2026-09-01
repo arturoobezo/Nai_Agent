@@ -2812,25 +2812,61 @@ ipcMain.handle('system:detect-hardware', async () => {
 ipcMain.handle('models:get-local-status', async () => {
   const dirs = getAppModelsDir();
   const hw = await detectSystemHardware();
+  const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  const allModelRoots = [
+    path.join(appData, 'NaiAgent', 'models'),
+    path.join(appData, 'nai-agent', 'models'),
+    path.join(app.getPath('userData'), 'models'),
+  ];
+
   const statusList = [];
 
   for (const [key, mod] of Object.entries(LOCAL_MODELS_CATALOG)) {
-    const primaryFile = path.join(dirs[mod.subfolder] || dirs.root, mod.filename);
-    const altFile = path.join(dirs.root, mod.filename);
-    const installed = fs.existsSync(primaryFile) || fs.existsSync(altFile);
+    let installed = false;
     let sizeOnDisk = 0;
-    const targetFile = fs.existsSync(primaryFile) ? primaryFile : altFile;
-    if (installed) {
+    let targetFile = '';
+
+    // Check primary file and alternate filenames (for Krea 2 variants: Q5_K_M, Q4_K_M, Q8_0, etc.)
+    const filenamesToCheck = [mod.filename];
+    if (mod.id === 'krea2_turbo') {
+      filenamesToCheck.push(
+        'krea2_turbo-Q5_K_M.gguf',
+        'Krea-2-Turbo-Q4_K_M.gguf',
+        'krea2_turbo-Q4_K_M.gguf',
+        'krea2_turbo-Q8_0.gguf'
+      );
+    }
+
+    for (const rootDir of allModelRoots) {
+      for (const fn of filenamesToCheck) {
+        const subP = path.join(rootDir, mod.subfolder || '', fn);
+        const rootP = path.join(rootDir, fn);
+        if (fs.existsSync(subP)) {
+          installed = true;
+          targetFile = subP;
+          break;
+        }
+        if (fs.existsSync(rootP)) {
+          installed = true;
+          targetFile = rootP;
+          break;
+        }
+      }
+      if (installed) break;
+    }
+
+    if (installed && targetFile) {
       try {
         const stat = fs.statSync(targetFile);
         sizeOnDisk = stat.size;
       } catch (e) {}
     }
+
     statusList.push({
       ...mod,
       installed,
       sizeOnDisk,
-      localPath: targetFile,
+      localPath: targetFile || path.join(dirs[mod.subfolder] || dirs.root, mod.filename),
       recommendedForHardware: hw.vramGB >= mod.minVramGB,
     });
   }
@@ -2839,7 +2875,7 @@ ipcMain.handle('models:get-local-status', async () => {
   const hasDiffusion = statusList.find((m) => m.id === 'krea2_turbo')?.installed;
   const hasClip = statusList.find((m) => m.id === 'qwen_clip')?.installed;
   const hasVae = statusList.find((m) => m.id === 'qwen_vae')?.installed;
-  const allCoreInstalled = hasDiffusion && hasClip && hasVae;
+  const allCoreInstalled = Boolean(hasDiffusion && hasClip && hasVae);
 
   return {
     modelsDir: dirs.root,
