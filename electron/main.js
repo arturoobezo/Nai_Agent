@@ -2875,7 +2875,9 @@ async function detectSystemHardware() {
 }
 
 function getAppModelsDir() {
-  const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  const isWin = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
+  const appData = process.env.APPDATA || (isMac ? path.join(os.homedir(), 'Library', 'Application Support') : path.join(os.homedir(), '.config'));
   const candidateRoots = [
     path.join(appData, 'NaiAgent', 'models'),
     path.join(app.getPath('userData'), 'models'),
@@ -2903,6 +2905,21 @@ function getAppModelsDir() {
       try { fs.mkdirSync(d, { recursive: true }); } catch (e) {}
     }
   });
+
+  // Auto-cleanup legacy deprecated Qwen VAE to save disk space
+  try {
+    const legacyFiles = [
+      path.join(dirs.vae, 'qwen_image_vae.safetensors'),
+      path.join(dirs.vae, 'qwen_image_vae.safetensors.tmp'),
+    ];
+    for (const lf of legacyFiles) {
+      if (fs.existsSync(lf)) {
+        console.log(`[CLEANUP] Eliminando VAE obsoleto para liberar espacio (~242MB): ${lf}`);
+        fs.unlinkSync(lf);
+      }
+    }
+  } catch (e) {}
+
   return dirs;
 }
 
@@ -2910,7 +2927,7 @@ function getSdCliBinaryPath() {
   const isWin = process.platform === 'win32';
   const isMac = process.platform === 'darwin';
   const binaryName = isWin ? 'sd-cli.exe' : 'sd-cli';
-  const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  const appData = process.env.APPDATA || (isMac ? path.join(os.homedir(), 'Library', 'Application Support') : path.join(os.homedir(), '.config'));
 
   const candidatePaths = [
     path.join(appData, 'NaiAgent', 'bin', 'sdcpp', binaryName),
@@ -2992,15 +3009,15 @@ const LOCAL_MODELS_CATALOG = {
     minVramGB: 2,
     subfolder: 'clip',
   },
-  qwen_vae: {
-    id: 'qwen_vae',
-    name: 'Qwen Image VAE (Krea 2)',
-    description: 'Decodificador VAE de alta fidelidad para generar la imagen final.',
+  wan_vae: {
+    id: 'wan_vae',
+    name: 'Wan 2.1 VAE Oficial (Krea 2)',
+    description: 'Decodificador VAE oficial de alta fidelidad para Krea 2 Turbo.',
     type: 'vae',
-    filename: 'qwen_image_vae.safetensors',
-    altFilenames: ['qwen_image_vae.safetensors'],
-    sizeBytes: 335544320,
-    url: 'https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors',
+    filename: 'wan_2.1_vae.safetensors',
+    altFilenames: ['wan_2.1_vae.safetensors'],
+    sizeBytes: 253815318,
+    url: 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors',
     minVramGB: 2,
     subfolder: 'vae',
   },
@@ -3344,7 +3361,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
       }
 
       let localVae = '';
-      const vaeNames = ['wan_2.1_vae.safetensors', 'qwen_image_vae.safetensors', 'ae.safetensors', 'flux2-vae.safetensors'];
+      const vaeNames = ['wan_2.1_vae.safetensors', 'ae.safetensors', 'flux2-vae.safetensors'];
       for (const d of allModelDirs) {
         for (const fn of vaeNames) {
           const p = path.join(d, 'vae', fn);

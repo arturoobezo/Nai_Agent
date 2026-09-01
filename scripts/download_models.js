@@ -240,7 +240,6 @@ async function main() {
       targetPath: path.join(dirs.vae, 'flux2-vae.safetensors'),
       mirrors: [
         'https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors',
-        'https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors',
       ],
       expectedSize: 335544320,
     },
