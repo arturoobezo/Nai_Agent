@@ -3008,6 +3008,7 @@ const LOCAL_MODELS_CATALOG = {
 
 let activeLocalModelId = 'krea2_turbo_q4';
 let activeSdChildProcess = null;
+let activeImageAbortController = null;
 
 function getHardwareProfilePath() {
   return path.join(app.getPath('userData'), 'hardware_profile.json');
@@ -3054,25 +3055,56 @@ ipcMain.handle('models:set-active-model', async (event, { modelId }) => {
   return { success: false, error: 'Modelo no válido' };
 });
 
+ipcMain.handle('media:read-image-data-url', async (event, { filePath }) => {
+  try {
+    if (!filePath) return { success: false, error: 'Ruta no especificada' };
+    let fullPath = filePath.trim();
+    if (!path.isAbsolute(fullPath) && activeServerRoot) {
+      fullPath = path.join(activeServerRoot, fullPath);
+    }
+    if (!fs.existsSync(fullPath) && activeServerRoot) {
+      const altP = path.join(activeServerRoot, 'Imagenes_IA', path.basename(fullPath));
+      if (fs.existsSync(altP)) fullPath = altP;
+    }
+    if (!fs.existsSync(fullPath)) {
+      return { success: false, error: `Imagen no encontrada en ${fullPath}` };
+    }
+    const ext = path.extname(fullPath).toLowerCase();
+    const mime = MIME_TYPES[ext] || 'image/png';
+    const buf = await fs.promises.readFile(fullPath);
+    const dataUrl = `data:${mime};base64,${buf.toString('base64')}`;
+    return { success: true, dataUrl, mime, fullPath, filename: path.basename(fullPath) };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('media:cancel-image-generation', async () => {
+  let wasCancelled = false;
+  if (activeImageAbortController) {
+    try {
+      activeImageAbortController.abort();
+      wasCancelled = true;
+      console.log('[CANCEL GENERATION] AbortController ejecutado con éxito');
+    } catch (e) {}
+    activeImageAbortController = null;
+  }
   if (activeSdChildProcess && activeSdChildProcess.pid) {
     const pid = activeSdChildProcess.pid;
     console.log(`[CANCEL GENERATION] Terminando proceso sd-cli (PID: ${pid})...`);
     try {
       if (process.platform === 'win32') {
-        exec(`taskkill /pid ${pid} /t /f`, (err) => {
-          if (err) console.warn('[TASKKILL Warning]:', err.message);
-        });
+        exec(`taskkill /pid ${pid} /t /f`, () => {});
       } else {
         process.kill(-pid, 'SIGKILL');
       }
+      wasCancelled = true;
     } catch (e) {
       try { activeSdChildProcess.kill('SIGKILL'); } catch (e2) {}
     }
     activeSdChildProcess = null;
-    return { success: true, message: 'Generación cancelada exitosamente' };
   }
-  return { success: true, message: 'No hay procesos activos' };
+  return { success: true, message: wasCancelled ? 'Generación cancelada exitosamente' : 'No hay procesos activos' };
 });
 
 ipcMain.handle('models:get-local-status', async () => {
@@ -3236,7 +3268,7 @@ const MODEL_INFERENCE_PRESETS = {
 };
 
 // ----------------------------------------------------
-// Native AI Image Generation Engine (Krea 2 Turbo GGUF)
+// Native AI Image Generation Engine (Krea 2 Turbo GGUF + FLUX Universal Fallback)
 // ----------------------------------------------------
 ipcMain.handle('media:generate-image-ai', async (event, {
   prompt,
@@ -3272,7 +3304,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
 
     const timeId = Date.now();
     const safeTitle = cleanPrompt.slice(0, 30).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const outFilename = `Imagen_Generada_Krea2_${safeTitle || 'ai'}_${timeId}.png`;
+    const outFilename = `Imagen_Generada_${safeTitle || 'ai'}_${timeId}.png`;
     const finalImagePath = path.join(imagesDir, outFilename);
 
     let generatedSuccess = false;
@@ -3388,7 +3420,6 @@ ipcMain.handle('media:generate-image-ai', async (event, {
         path.join(app.getPath('userData'), 'models'),
       ];
 
-      // 1. Find target model based on activeLocalModelId or available models
       const activeMod = LOCAL_MODELS_CATALOG[activeLocalModelId];
       let localDiffusion = '';
       const targetNames = [];
@@ -3411,7 +3442,6 @@ ipcMain.handle('media:generate-image-ai', async (event, {
         if (localDiffusion) break;
       }
 
-      // Find local VAE
       let localVae = '';
       const vaeNames = ['qwen_image_vae.safetensors', 'ae.safetensors', 'flux2-vae.safetensors'];
       for (const d of allModelDirs) {
@@ -3422,7 +3452,6 @@ ipcMain.handle('media:generate-image-ai', async (event, {
         if (localVae) break;
       }
 
-      // Find local CLIP
       let localClip = '';
       const clipNames = ['qwen3vl_4b_fp8_scaled.safetensors', 'qwen_3_4b_fp4_flux2.safetensors'];
       for (const d of allModelDirs) {
@@ -3433,13 +3462,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
         if (localClip) break;
       }
 
-      if (!fs.existsSync(sdExe)) {
-        localFailureReason = `No se encontró el ejecutable de inferencia local sd-cli en disco.`;
-        console.warn(`[NATIVE SD]: ${localFailureReason}`);
-      } else if (!localDiffusion) {
-        localFailureReason = `No se encontró ningún archivo de modelo de difusión (.gguf) en las carpetas de modelos locales.`;
-        console.warn(`[NATIVE SD]: ${localFailureReason}`);
-      } else {
+      if (fs.existsSync(sdExe) && localDiffusion) {
         try {
           console.log(`[NATIVE SD] Inferencia local acelerada con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
           const args = [
@@ -3457,12 +3480,8 @@ ipcMain.handle('media:generate-image-ai', async (event, {
             '-o', finalImagePath,
           ];
 
-          if (localVae) {
-            args.push('--vae', localVae);
-          }
-          if (localClip) {
-            args.push('--llm', localClip);
-          }
+          if (localVae) args.push('--vae', localVae);
+          if (localClip) args.push('--llm', localClip);
 
           await new Promise((resCli, rejCli) => {
             const child = execFile(
@@ -3478,7 +3497,7 @@ ipcMain.handle('media:generate-image-ai', async (event, {
               if (err) {
                 const errOut = stderr || stdout || err.message;
                 if (/OutOfDeviceMemory|allocateMemory/i.test(errOut)) {
-                  localFailureReason = 'Memoria VRAM insuficiente en la GPU para el modelo seleccionado. Se recomienda usar la cuantización Q4_K_M para GPUs de 8GB.';
+                  localFailureReason = 'Memoria VRAM insuficiente en la GPU para el modelo seleccionado.';
                 } else {
                   localFailureReason = `Error durante la ejecución local de sd-cli: ${err.message}`;
                 }
@@ -3495,7 +3514,6 @@ ipcMain.handle('media:generate-image-ai', async (event, {
 
             activeSdChildProcess = child;
 
-            // Stream image notifications as each image finishes (sd-cli outputs to stderr / stdout)
             const processChunk = async (chunk) => {
               const text = chunk.toString();
               const match = text.match(/save result image (\d+) to '([^']+)'/i);
@@ -3522,12 +3540,8 @@ ipcMain.handle('media:generate-image-ai', async (event, {
               }
             };
 
-            if (child && child.stdout) {
-              child.stdout.on('data', processChunk);
-            }
-            if (child && child.stderr) {
-              child.stderr.on('data', processChunk);
-            }
+            if (child && child.stdout) child.stdout.on('data', processChunk);
+            if (child && child.stderr) child.stderr.on('data', processChunk);
           });
         } catch (eNative) {
           activeSdChildProcess = null;
@@ -3537,11 +3551,40 @@ ipcMain.handle('media:generate-image-ai', async (event, {
       }
     }
 
-    // 100% Local: Zero Cloud Fallback
+    // 2. Universal High-Fidelity FLUX / Pollinations Fallback (100% Free, Zero-install, Multiplatform)
+    if (!generatedSuccess) {
+      activeImageAbortController = new AbortController();
+      const signal = activeImageAbortController.signal;
+
+      try {
+        console.log(`[IMAGE ENGINE] Generando imagen en alta fidelidad con FLUX (${width}x${height})...`);
+        const pollSeed = seed === -1 ? Math.floor(Math.random() * 999999) : seed;
+        const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&enhance=true&seed=${pollSeed}`;
+
+        const pollRes = await fetch(pollUrl, { signal, headers: { 'User-Agent': 'NaiAgent/1.0' } });
+        if (pollRes.ok) {
+          const arrBuf = await pollRes.arrayBuffer();
+          const buf = Buffer.from(arrBuf);
+          if (buf.length > 2000) {
+            await fs.promises.writeFile(finalImagePath, buf);
+            generatedSuccess = true;
+            console.log(`[IMAGE ENGINE] Imagen generada con éxito y guardada en ${finalImagePath}`);
+          }
+        }
+      } catch (ePoll) {
+        if (ePoll.name === 'AbortError') {
+          return { success: false, error: 'Generación de imagen cancelada por el usuario' };
+        }
+        console.warn('[IMAGE ENGINE Pollinations Fallback Error]:', ePoll.message);
+      } finally {
+        activeImageAbortController = null;
+      }
+    }
+
     if (!generatedSuccess) {
       return {
         success: false,
-        error: localFailureReason || 'No se pudo completar la generación local de imágenes. Verifica que el modelo esté en disco y haya memoria suficiente.',
+        error: localFailureReason || 'No se pudo completar la generación de imágenes.',
       };
     }
 

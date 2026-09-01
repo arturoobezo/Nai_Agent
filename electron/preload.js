@@ -62,9 +62,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   transcribeAudioBuffer: (payload) => ipcRenderer.invoke('media:transcribe-audio-buffer', payload),
   readVideoDataUrl: (payload) => ipcRenderer.invoke('media:read-video-data-url', payload),
 
-  // System Hardware Profiler & Native AI Image Generation (stable-diffusion.cpp)
+  // System Hardware Profiler & Native AI Image Generation (stable-diffusion.cpp & FLUX)
   detectHardware: () => ipcRenderer.invoke('system:detect-hardware'),
   generateAIImage: (payload) => ipcRenderer.invoke('media:generate-image-ai', payload),
+  readImageDataUrl: (payload) => ipcRenderer.invoke('media:read-image-data-url', payload),
 
   // Local AI Models & First-Run Manager
   getModelStatus: () => ipcRenderer.invoke('models:get-local-status'),
