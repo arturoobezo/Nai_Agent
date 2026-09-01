@@ -1634,6 +1634,8 @@ ${fileList || '(Carpeta vacía)'}`;
                 .trim();
               if (!cleanPrompt) cleanPrompt = userText.trim();
 
+              let lastImageError = '';
+
               for (let i = 0; i < countToGen; i++) {
                 if (countToGen > 1) setAgentStatusStep(`🎨 Generando imagen ${i + 1} de ${countToGen}...`);
                 else setAgentStatusStep(`🎨 Generando imagen...`);
@@ -1665,6 +1667,8 @@ ${fileList || '(Carpeta vacía)'}`;
                   generatedToolsXml.push(
                     `<agent_tool name="generate_image" path="${relP}" prompt="${cleanPrompt}" width="${width}" height="${height}" />`
                   );
+                } else if (imgRes && imgRes.error) {
+                  lastImageError = imgRes.error;
                 }
               }
 
@@ -1674,7 +1678,7 @@ ${fileList || '(Carpeta vacía)'}`;
                 role: 'assistant',
                 content: anySuccess
                   ? `✨ He generado ${countToGen > 1 ? `${countToGen} imágenes` : 'la imagen'} exitosamente (${imageAspectRatio}, ${imageQuality}).\n\n${generatedToolsXml.join('\n\n')}`
-                  : `⚠️ No se pudo generar la imagen. Verifica que el motor o los modelos estén listos.`,
+                  : `⚠️ ${lastImageError || 'No se pudo generar la imagen de forma local. Revisa que el modelo esté en disco y la memoria disponible.'}`,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 actions: generatedActions,
                 executedActions: generatedActions,

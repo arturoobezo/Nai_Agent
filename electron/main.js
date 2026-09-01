@@ -3080,6 +3080,8 @@ ipcMain.handle('media:generate-image-ai', async (event, {
       console.warn('[LOCAL GPU Check]:', eLocal.message);
     }
 
+    let localFailureReason = '';
+
     // 1. Native Standalone Local Engine (sd-cli.exe with local GGUF models)
     if (!generatedSuccess) {
       const sdExe = getSdCliBinaryPath();
@@ -3129,9 +3131,15 @@ ipcMain.handle('media:generate-image-ai', async (event, {
         if (localClip) break;
       }
 
-      if (fs.existsSync(sdExe) && localDiffusion) {
+      if (!fs.existsSync(sdExe)) {
+        localFailureReason = `No se encontró el ejecutable de inferencia local sd-cli en disco.`;
+        console.warn(`[NATIVE SD]: ${localFailureReason}`);
+      } else if (!localDiffusion) {
+        localFailureReason = `No se encontró ningún archivo de modelo de difusión (.gguf) en las carpetas de modelos locales.`;
+        console.warn(`[NATIVE SD]: ${localFailureReason}`);
+      } else {
         try {
-          console.log(`[NATIVE SD] Inferencia local con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
+          console.log(`[NATIVE SD] Inferencia 100% local con ${path.basename(localDiffusion)} (${effectiveSteps} pasos, CFG ${effectiveCfg}, ${width}x${height}, sampler ${effectiveSampler}, scheduler ${effectiveScheduler})...`);
           const args = [
             '--diffusion-model', localDiffusion,
             '-p', cleanPrompt,
@@ -3154,57 +3162,38 @@ ipcMain.handle('media:generate-image-ai', async (event, {
           }
 
           await new Promise((resCli, rejCli) => {
-            execFile(sdExe, args, { timeout: 180000 }, (err, stdout, stderr) => {
+            execFile(sdExe, args, { timeout: 300000 }, (err, stdout, stderr) => {
               if (err) {
-                console.warn('[NATIVE SD Error]:', stderr || err.message);
+                const errOut = stderr || stdout || err.message;
+                if (/OutOfDeviceMemory|allocateMemory/i.test(errOut)) {
+                  localFailureReason = 'Memoria VRAM insuficiente en la GPU para el tamaño de modelo seleccionado.';
+                } else {
+                  localFailureReason = `Error durante la ejecución local de sd-cli: ${err.message}`;
+                }
+                console.warn('[NATIVE SD Error]:', errOut);
                 return rejCli(err);
               }
               if (fs.existsSync(finalImagePath)) {
                 generatedSuccess = true;
                 return resCli();
               }
-              rejCli(new Error('Imagen no generada en disco'));
+              localFailureReason = 'El proceso de sd-cli finalizó pero el archivo de imagen no se guardó en disco.';
+              rejCli(new Error(localFailureReason));
             });
           });
         } catch (eNative) {
-          console.warn('[NATIVE SD Fallback to Cloud]:', eNative.message);
+          if (!localFailureReason) localFailureReason = eNative.message;
+          console.warn('[NATIVE SD Execution Failed]:', eNative.message);
         }
       }
     }
 
-    // 2. High-Fidelity Diffusion Engine (Krea 2 Turbo / SDXL Turbo / Flux Multi-Tier Engine)
+    // 100% Local: Zero Cloud Fallback
     if (!generatedSuccess) {
-      const endpointsToTry = [
-        `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt + ', masterpiece, ultra-detailed, photorealistic, 8k resolution, cinematic lighting, sharp focus')}?width=${width}&height=${height}&model=turbo&nologo=true&seed=${seed === -1 ? Math.floor(Math.random() * 9999999) : seed}`,
-        `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt + ', 8k, detailed, photorealistic')}?width=${width}&height=${height}&nologo=true&seed=${seed === -1 ? Math.floor(Math.random() * 9999999) : seed}`,
-        `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed === -1 ? Math.floor(Math.random() * 9999999) : seed}`,
-      ];
-
-      for (const endpointUrl of endpointsToTry) {
-        try {
-          console.log(`[Diffusion Cloud] Generando imagen (${width}x${height})...`);
-          const cloudRes = await fetch(endpointUrl, {
-            headers: { 'User-Agent': 'NaiAgent/1.0' },
-            signal: AbortSignal.timeout(60000),
-          });
-
-          if (cloudRes.ok) {
-            const arrayBuffer = await cloudRes.arrayBuffer();
-            const imgBuffer = Buffer.from(arrayBuffer);
-            if (imgBuffer.length > 3000) {
-              await fs.promises.writeFile(finalImagePath, imgBuffer);
-              generatedSuccess = true;
-              break;
-            }
-          }
-        } catch (eCloud) {
-          console.warn('[Diffusion Cloud Endpoint Failed]:', eCloud.message);
-        }
-      }
-    }
-
-    if (!generatedSuccess) {
-      return { success: false, error: 'No se pudo conectar con el motor de generación de imágenes Krea 2.' };
+      return {
+        success: false,
+        error: localFailureReason || 'No se pudo completar la generación local de imágenes. Verifica que el modelo esté en disco y haya memoria suficiente.',
+      };
     }
 
     const imgBuf = await fs.promises.readFile(finalImagePath);
