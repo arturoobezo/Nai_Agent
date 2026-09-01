@@ -1638,9 +1638,95 @@ export default function ChatPanel() {
     setAgentStatusStep('Analizando espacio de trabajo y ejecutando herramientas...');
 
     try {
-      // Get workspace file list context only when Agent Mode is active
+      // 0. Check if user is asking to generate an image (or if Image Mode is active)
+      const countExplicitMatch = userText.match(/\b(4|cuatro|four|3|tres|three|2|dos|two|1|una|uno|one)\s*(?:de\s+)?(?:im[aá]genes|fotos|fotograf[ií]as|ilustraciones|dibujos|variaciones|opciones)\b/i) ||
+                                 userText.match(/(?:haz|crea|genera|dame|saca|renderiza|quiero|pon|hazme|creame)\s*(?:unas|unos)?\s*(4|cuatro|four|3|tres|three|2|dos|two|1|una|uno|one)\b/i);
+
+      let detectedCount = imageCount || 1;
+      if (countExplicitMatch) {
+        const term = (countExplicitMatch[1] || '').toLowerCase();
+        if (term === '4' || term === 'cuatro' || term === 'four') detectedCount = 4;
+        else if (term === '3' || term === 'tres' || term === 'three') detectedCount = 3;
+        else if (term === '2' || term === 'dos' || term === 'two') detectedCount = 2;
+        else if (term === '1' || term === 'una' || term === 'uno' || term === 'one') detectedCount = 1;
+      }
+
+      const isDirectImageGen = isImageMode ||
+        /(genera|crea|dibuja|renderiza|haz|cr[eé]ame|dame|mu[eé]strame|saca|quiero)\s+(una\s+|un\s+|\d+\s+|dos\s+|tres\s+|cuatro\s+)?(imagen(es)?|im[aá]gen(es)?|foto(s)?|fotograf[ií]a(s)?|dibujo(s)?|logo(s)?|ilustraci[oó]n(es)?|retrato(s)?|paisaje(s)?|wallpaper(s)?)/i.test(userText) ||
+        /\b(4|3|2|1|cuatro|tres|dos|una)\s+(im[aá]genes|fotos|fotograf[ií]as|dibujos|ilustraciones)\b/i.test(userText);
+
+      if (isDirectImageGen) {
+        const { width, height } = getDimensionsFromRatioAndQuality(imageAspectRatio, imageQuality);
+        const countToGen = Math.max(1, Math.min(4, detectedCount));
+        setAgentStatusStep(`🎨 Generando ${countToGen > 1 ? `${countToGen} imágenes` : 'imagen'} (${imageAspectRatio}, ${imageQuality})...`);
+
+        const generatedToolsXml = [];
+        const generatedActions = [];
+        let anySuccess = false;
+
+        let cleanPrompt = userText
+          .replace(/^(genera|crea|dibuja|renderiza|haz|cr[eé]ame|dame|mu[eé]strame|saca|quiero)\s+(una\s+|un\s+|\d+\s+|dos\s+|tres\s+|cuatro\s+)?(imagen(es)?|im[aá]gen(es)?|foto(s)?|fotograf[ií]a(s)?|dibujo(s)?|logo(s)?|ilustraci[oó]n(es)?|retrato(s)?|paisaje(s)?|wallpaper(s)?)?\s*(de\s+|con\s+|sobre\s+)?/i, '')
+          .trim();
+        if (!cleanPrompt) cleanPrompt = userText.trim();
+
+        let lastImageError = '';
+
+        for (let i = 0; i < countToGen; i++) {
+          if (countToGen > 1) setAgentStatusStep(`🎨 Generando imagen ${i + 1} de ${countToGen}...`);
+          else setAgentStatusStep(`🎨 Generando imagen...`);
+
+          const imgRes = await generateAIImage({
+            prompt: cleanPrompt,
+            width,
+            height,
+            seed: -1,
+          });
+
+          if (imgRes && imgRes.success) {
+            anySuccess = true;
+            const relP = imgRes.relativePath || imgRes.filename;
+            const fullP = imgRes.imagePath || relP;
+            const cardAction = {
+              tool: 'generate_image',
+              isImage: true,
+              path: relP,
+              imagePath: fullP,
+              relativePath: relP,
+              dataUrl: imgRes.dataUrl || '',
+              filename: imgRes.filename || relP,
+              prompt: cleanPrompt,
+              width,
+              height,
+            };
+            generatedActions.push(cardAction);
+            generatedToolsXml.push(
+              `<agent_tool name="generate_image" path="${relP}" prompt="${cleanPrompt}" width="${width}" height="${height}" />`
+            );
+          } else if (imgRes && imgRes.error) {
+            lastImageError = imgRes.error;
+          }
+        }
+
+        const assistantResponse = {
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: anySuccess
+            ? `✨ He generado ${countToGen > 1 ? `${countToGen} imágenes` : 'la imagen'} exitosamente (${imageAspectRatio}, ${imageQuality}).\n\n${generatedToolsXml.join('\n\n')}`
+            : `⚠️ ${lastImageError || 'No se pudo generar la imagen de forma local. Revisa que el modelo esté en disco y la memoria disponible.'}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          actions: generatedActions,
+          executedActions: generatedActions,
+        };
+
+        updateCurrentSessionMessages([...newMessages, assistantResponse]);
+        setIsLoading(false);
+        setAgentStatusStep('');
+        return;
+      }
+
+      // Get workspace file list context whenever workspacePath exists (both in Agent and Chat modes)
       let workspaceContext = '';
-      if (isAgentMode && workspacePath) {
+      if (workspacePath) {
         try {
           const detailed = await listWorkspaceFiles(true);
           const fileList = (detailed.files || []).slice(0, 60).map((f) => {
@@ -1656,7 +1742,7 @@ Ruta: ${workspacePath}
 Archivos existentes y texto detectado:
 ${fileList || '(Carpeta vacía)'}`;
 
-          // Load relevant text / subtitle / code files with safe memory bounds (PDFs only on explicit request)
+          // Load relevant text / subtitle / code files with safe memory bounds
           let filesContentSection = '';
           const textFiles = (detailed.files || []).filter((f) => !f.isDirectory && /\.(srt|vtt|txt|md|js|jsx|ts|tsx|html|css|json|py|sql|sh|env)$/i.test(f.relativePath) && f.size < 800000);
           for (const tf of textFiles.slice(0, 6)) {
@@ -1674,7 +1760,7 @@ ${fileList || '(Carpeta vacía)'}`;
             workspaceContext += `\n\nCONTENIDO DE LOS ARCHIVOS DEL PROYECTO:${filesContentSection}`;
           }
 
-          // Proactively inject full PDF content if user mentions PDF analysis/summary
+          // 1. Proactively inject full PDF content if user mentions PDF analysis/summary
           if (/(pdf|documento|informe|reporte|resum|analiz|explica|lee)/i.test(userText)) {
             const pdfFiles = (detailed.files || []).filter((f) => /\.pdf$/i.test(f.relativePath));
             if (pdfFiles.length > 0) {
@@ -1686,7 +1772,23 @@ ${fileList || '(Carpeta vacía)'}`;
             }
           }
 
-          // Check if user is asking to translate subtitles
+          // 2. Proactively transcribe and inject audio/video content if user asks to analyze, summarize, explain, or transcribe media
+          const isMediaAnalysisRequest = /(?:subt[ií]tulo|transcrib|transcripci[oó]n|audio a texto|sacar subt|crear subt|generar subt|analiz|resum|explica|qu[eé] (?:dice|trata|pasa|cuenta|hay|ocurre)|de qu[eé]|entiend|escucha|revisa|di[aá]logo|audio|video|trailer|pel[ií]cula|clip)/i.test(userText);
+          if (isMediaAnalysisRequest) {
+            const mediaFiles = (detailed.files || []).filter((f) => !f.isDirectory && /\.(mp4|mkv|mov|avi|webm|mp3|wav|m4a)$/i.test(f.relativePath));
+            if (mediaFiles.length > 0) {
+              const targetMedia = findBestMatchingFile(mediaFiles, userText);
+              const targetLang = /(ingl[eé]s|english|en ingl)/i.test(userText) ? 'en' : 'es';
+              setAgentStatusStep(`🎙️ Escuchando y transcribiendo ${targetMedia.name} con Whisper...`);
+              const transRes = await autoTranscribeVideo(targetMedia.relativePath, targetLang);
+              if (transRes.success && transRes.content) {
+                console.log(`[MEDIA TRANSCRIPTION] Diálogos listos para ${targetMedia.name} (${transRes.content.length} caracteres)`);
+                workspaceContext += `\n\n[CONTENIDO COMPLETO DE DIÁLOGOS Y AUDIO DE ${targetMedia.relativePath} EXTRAÍDO VIA WHISPER]:\n${transRes.content.slice(0, 12000)}`;
+              }
+            }
+          }
+
+          // 3. Subtitle translation helper
           const isTranslateSubRequest = /(traduc|traducir|traducci[oó]n)/i.test(userText) && /(subt[ií]tulo|srt|vtt)/i.test(userText);
           if (isTranslateSubRequest) {
             const srtFiles = (detailed.files || []).filter((f) => /\.(srt|vtt)$/i.test(f.relativePath));
@@ -1700,7 +1802,10 @@ ${fileList || '(Carpeta vacía)'}`;
                 workspaceContext += `\n\n[SUBTÍTULOS TRADUCIDOS CON ÉXITO A ${targetLang} EN ${outName}]:\n${transRes.content.slice(0, 1500)}`;
               }
             }
-          } else if (/(unir|pegar|juntar|combinar|concatenar)/i.test(userText) && /(video|videos|clips)/i.test(userText)) {
+          }
+
+          // 4. Video concatenation helper
+          if (/(unir|pegar|juntar|combinar|concatenar)/i.test(userText) && /(video|videos|clips)/i.test(userText)) {
             const videoFiles = (detailed.files || []).filter((f) => /\.(mp4|mkv|mov|avi|webm)$/i.test(f.relativePath));
             if (videoFiles.length >= 2) {
               const outName = 'Video_Unido.mp4';
@@ -1708,110 +1813,6 @@ ${fileList || '(Carpeta vacía)'}`;
               const concatRes = await concatVideos(videoFiles.map((m) => m.relativePath), outName);
               if (concatRes.success) {
                 workspaceContext += `\n\n[VIDEOS UNIDOS CON ÉXITO]: Se han concatenado ${videoFiles.map((m) => m.relativePath).join(' + ')} en el archivo ${outName}.`;
-              }
-            }
-          } else {
-            // Check if user is asking to generate an image (or if Image Mode is active)
-            const countExplicitMatch = userText.match(/\b(4|cuatro|four|3|tres|three|2|dos|two|1|una|uno|one)\s*(?:de\s+)?(?:im[aá]genes|fotos|fotograf[ií]as|ilustraciones|dibujos|variaciones|opciones)\b/i) ||
-                                       userText.match(/(?:haz|crea|genera|dame|saca|renderiza|quiero|pon|hazme|creame)\s*(?:unas|unos)?\s*(4|cuatro|four|3|tres|three|2|dos|two|1|una|uno|one)\b/i);
-
-            let detectedCount = imageCount || 1;
-            if (countExplicitMatch) {
-              const term = (countExplicitMatch[1] || '').toLowerCase();
-              if (term === '4' || term === 'cuatro' || term === 'four') detectedCount = 4;
-              else if (term === '3' || term === 'tres' || term === 'three') detectedCount = 3;
-              else if (term === '2' || term === 'dos' || term === 'two') detectedCount = 2;
-              else if (term === '1' || term === 'una' || term === 'uno' || term === 'one') detectedCount = 1;
-            }
-
-            const isDirectImageGen = isImageMode ||
-              /(genera|crea|dibuja|renderiza|haz|cr[eé]ame|dame|mu[eé]strame|saca|quiero)\s+(una\s+|un\s+|\d+\s+|dos\s+|tres\s+|cuatro\s+)?(imagen(es)?|im[aá]gen(es)?|foto(s)?|fotograf[ií]a(s)?|dibujo(s)?|logo(s)?|ilustraci[oó]n(es)?|retrato(s)?|paisaje(s)?|wallpaper(s)?)/i.test(userText) ||
-              /\b(4|3|2|1|cuatro|tres|dos|una)\s+(im[aá]genes|fotos|fotograf[ií]as|dibujos|ilustraciones)\b/i.test(userText);
-
-            if (isDirectImageGen) {
-              const { width, height } = getDimensionsFromRatioAndQuality(imageAspectRatio, imageQuality);
-              const countToGen = Math.max(1, Math.min(4, detectedCount));
-              setAgentStatusStep(`🎨 Generando ${countToGen > 1 ? `${countToGen} imágenes` : 'imagen'} (${imageAspectRatio}, ${imageQuality})...`);
-
-              const generatedToolsXml = [];
-              const generatedActions = [];
-              let anySuccess = false;
-
-              // Clean natural prompt extraction
-              let cleanPrompt = userText
-                .replace(/^(genera|crea|dibuja|renderiza|haz|cr[eé]ame|dame|mu[eé]strame|saca|quiero)\s+(una\s+|un\s+|\d+\s+|dos\s+|tres\s+|cuatro\s+)?(imagen(es)?|im[aá]gen(es)?|foto(s)?|fotograf[ií]a(s)?|dibujo(s)?|logo(s)?|ilustraci[oó]n(es)?|retrato(s)?|paisaje(s)?|wallpaper(s)?)?\s*(de\s+|con\s+|sobre\s+)?/i, '')
-                .trim();
-              if (!cleanPrompt) cleanPrompt = userText.trim();
-
-              let lastImageError = '';
-
-              for (let i = 0; i < countToGen; i++) {
-                if (countToGen > 1) setAgentStatusStep(`🎨 Generando imagen ${i + 1} de ${countToGen}...`);
-                else setAgentStatusStep(`🎨 Generando imagen...`);
-
-                const imgRes = await generateAIImage({
-                  prompt: cleanPrompt,
-                  width,
-                  height,
-                  seed: -1,
-                });
-
-                if (imgRes && imgRes.success) {
-                  anySuccess = true;
-                  const relP = imgRes.relativePath || imgRes.filename;
-                  const fullP = imgRes.imagePath || relP;
-                  const cardAction = {
-                    tool: 'generate_image',
-                    isImage: true,
-                    path: relP,
-                    imagePath: fullP,
-                    relativePath: relP,
-                    dataUrl: imgRes.dataUrl || '',
-                    filename: imgRes.filename || relP,
-                    prompt: cleanPrompt,
-                    width,
-                    height,
-                  };
-                  generatedActions.push(cardAction);
-                  generatedToolsXml.push(
-                    `<agent_tool name="generate_image" path="${relP}" prompt="${cleanPrompt}" width="${width}" height="${height}" />`
-                  );
-                } else if (imgRes && imgRes.error) {
-                  lastImageError = imgRes.error;
-                }
-              }
-
-              // Finish turn with assistant message containing image tools and cards directly
-              const assistantResponse = {
-                id: `msg-${Date.now()}`,
-                role: 'assistant',
-                content: anySuccess
-                  ? `✨ He generado ${countToGen > 1 ? `${countToGen} imágenes` : 'la imagen'} exitosamente (${imageAspectRatio}, ${imageQuality}).\n\n${generatedToolsXml.join('\n\n')}`
-                  : `⚠️ ${lastImageError || 'No se pudo generar la imagen de forma local. Revisa que el modelo esté en disco y la memoria disponible.'}`,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                actions: generatedActions,
-                executedActions: generatedActions,
-              };
-
-              updateCurrentSessionMessages([...newMessages, assistantResponse]);
-              setIsLoading(false);
-              setAgentStatusStep('');
-              return;
-            } else {
-              // Check if user is asking for video/audio analysis, summarization, explanation, or subtitles/transcription
-              const isMediaAnalysisRequest = /(?:subt[ií]tulo|transcrib|transcripci[oó]n|audio a texto|sacar subt|crear subt|generar subt|analiz|resum|explica|qu[eé] (?:dice|trata|pasa|cuenta|hay|ocurre)|de qu[eé]|entiend|escucha|revisa|di[aá]logo|audio|video|trailer|pel[ií]cula|clip)/i.test(userText);
-              if (isMediaAnalysisRequest) {
-                const mediaFiles = (detailed.files || []).filter((f) => !f.isDirectory && /\.(mp4|mkv|mov|avi|webm|mp3|wav|m4a)$/i.test(f.relativePath));
-                if (mediaFiles.length > 0) {
-                  const targetMedia = findBestMatchingFile(mediaFiles, userText);
-                  const targetLang = /(ingl[eé]s|english|en ingl)/i.test(userText) ? 'en' : 'es';
-                  setAgentStatusStep(`🎙️ Escuchando y transcribiendo ${targetMedia.name} con Whisper...`);
-                  const transRes = await autoTranscribeVideo(targetMedia.relativePath, targetLang);
-                  if (transRes.success && transRes.content) {
-                    console.log(`[MEDIA TRANSCRIPTION] Subtítulos/diálogos listos para ${targetMedia.name} (${transRes.content.length} chars)`);
-                    workspaceContext += `\n\n[CONTENIDO COMPLETO DE DIÁLOGOS Y AUDIO DE ${targetMedia.relativePath} EXTRAÍDO VIA WHISPER]:\n${transRes.content.slice(0, 12000)}`;
-                  }
-                }
               }
             }
           }
@@ -1830,8 +1831,9 @@ REGLAS FUNDAMENTALES DEL MODO AGENTE:
    - EMITE PRIMERO las etiquetas <agent_tool name="create_file" path="index.html">, <agent_tool name="create_file" path="styles.css">, etc. con el código completo y funcional.
    - NUNCA escribas el código como bloques de markdown normales en tu texto si vas a crear los archivos. Emite SIEMPRE <agent_tool name="create_file"> directamente.
    - Después de cerrar todas las etiquetas </agent_tool>, escribe una breve explicación o resumen.
-5. CAPACIDADES DE VISIÓN MULTIMODAL:
-   - Tienes capacidad completa de visión multimodal para ver, examinar, describir y analizar cualquier imagen adjunta o ubicada en el espacio de trabajo cuando el usuario lo solicite.
+5. CAPACIDADES DE VISIÓN MULTIMODAL Y AUDIO/VIDEO:
+   - Tienes capacidad completa de visión multimodal para ver, examinar, describir y analizar cualquier imagen adjunta o ubicada en el espacio de trabajo.
+   - Tienes acceso al contenido de diálogos y audio extraído de los videos del espacio de trabajo cuando el usuario lo solicite.
 
 HERRAMIENTAS DISPONIBLES:
 1. CREAR ARCHIVOS:
@@ -1852,7 +1854,7 @@ contenido completo aquí
 </agent_tool>
 
 ${workspaceContext}`
-        : 'Eres Nai Agent, un asistente de Inteligencia Artificial conversacional, rápido, inteligente y servicial. Tienes capacidad de visión multimodal para analizar imágenes cuando se te proporcionen. Responde de forma clara, directa y amable al usuario.';
+        : `Eres Nai Agent, un asistente de Inteligencia Artificial conversacional, rápido, inteligente y servicial. Tienes capacidad de visión multimodal para analizar imágenes y capacidad para analizar el contenido y diálogos de videos y archivos locales proporcionados en el contexto del espacio de trabajo. Responde de forma clara, directa y amable al usuario.${workspaceContext ? '\n\n' + workspaceContext : ''}`;
 
       const skillsPrompt = isAgentMode && getActiveSkillsSystemPrompt ? getActiveSkillsSystemPrompt() : '';
       const fullSystemInstruction = skillsPrompt
