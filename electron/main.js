@@ -8,6 +8,16 @@ const { exec, execFile } = require('child_process');
 const util = require('util');
 const execAsync = util.promisify(exec);
 
+// Ensure macOS GUI environment inherits standard /opt/homebrew and /usr/local PATHs
+if (process.platform === 'darwin') {
+  const extraPaths = ['/opt/homebrew/bin', '/opt/homebrew/sbin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin'];
+  const curPath = process.env.PATH || '';
+  const toAdd = extraPaths.filter((p) => !curPath.includes(p) && fs.existsSync(p));
+  if (toAdd.length > 0) {
+    process.env.PATH = toAdd.join(':') + ':' + curPath;
+  }
+}
+
 // ----------------------------------------------------
 // MIME Types Map
 // ----------------------------------------------------
@@ -2651,6 +2661,20 @@ async function detectSystemHardware() {
             if (bytes > 0) vramGB = Math.round(bytes / (1024 * 1024 * 1024));
           }
         }
+      }
+    } else if (process.platform === 'darwin') {
+      try {
+        const { stdout } = await execAsync('sysctl -n machdep.cpu.brand_string');
+        if (stdout && stdout.trim()) {
+          gpuName = `${stdout.trim()} (Metal GPU)`;
+        } else {
+          gpuName = 'Apple Silicon Metal GPU';
+        }
+        // Unified memory on macOS acts as high-speed VRAM for Metal
+        vramGB = Math.max(4, Math.round(totalRamGB * 0.75));
+      } catch (eMac) {
+        gpuName = 'Apple Metal Graphics';
+        vramGB = Math.max(4, Math.round(totalRamGB * 0.5));
       }
     }
   } catch (err) {
