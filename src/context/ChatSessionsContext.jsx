@@ -120,9 +120,12 @@ export function ChatSessionsProvider({ children }) {
 
   // Update messages in the current session (supports array or functional updater: (prev) => next)
   const updateCurrentSessionMessages = (updater) => {
-    setSessions((prev) =>
-      prev.map((s) => {
-        if (s.id === activeSessionId) {
+    console.log('[CHATSESSIONS] updateCurrentSessionMessages invocado. activeSessionId:', activeSessionId);
+    setSessions((prev) => {
+      const matchExists = prev.some((s) => s.id === activeSessionId);
+      console.log('[CHATSESSIONS] IDs de sesiones disponibles:', prev.map((s) => s.id), '¿Coincide activeSessionId?:', matchExists);
+      return prev.map((s) => {
+        if (s.id === activeSessionId || (!matchExists && s === prev[0])) {
           const currentMessages = Array.isArray(s.messages) ? s.messages : [];
           const resolvedMessages = typeof updater === 'function' ? updater(currentMessages) : updater;
           const finalMessages = Array.isArray(resolvedMessages) ? resolvedMessages : currentMessages;
@@ -145,8 +148,8 @@ export function ChatSessionsProvider({ children }) {
           };
         }
         return s;
-      })
-    );
+      });
+    });
   };
 
   // Rename session

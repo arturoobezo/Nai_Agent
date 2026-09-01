@@ -1850,6 +1850,8 @@ ${workspaceContext}`;
         webSearch: isWebSearchEnabled,
       });
 
+      console.log('[CHATPANEL] sendAIMessage completado con resultado:', response);
+
       if (response && response.success) {
         const rawContent = response.content || 'Sin respuesta del modelo.';
         const parsed = parseAgentMessage(rawContent);
@@ -1872,6 +1874,7 @@ ${workspaceContext}`;
           modelUsed: response.model,
           webResults: response.webResults || [],
         };
+        console.log('[CHATPANEL] Inyectando mensaje de asistente en la sesión:', assistantMessage);
         updateCurrentSessionMessages([...newMessages, assistantMessage]);
       } else if (response && response.aborted) {
         updateCurrentSessionMessages([
@@ -2347,7 +2350,10 @@ ${workspaceContext}`;
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleSend(e);
+                e.stopPropagation();
+                if (!isLoading) {
+                  handleSend(e);
+                }
               }
             }}
             placeholder={
