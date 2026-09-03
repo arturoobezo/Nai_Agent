@@ -21,6 +21,9 @@ jobs:
           - os: macos-latest
             platform: macos
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -62,3 +65,26 @@ jobs:
             release/*.dmg
             release/*.zip
           if-no-files-found: error
+
+      - name: Update GitHub Release (Windows)
+        if: matrix.platform == 'windows'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: Nai_Agent
+          name: "Nai Agent for Windows"
+          files: release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update GitHub Release (macOS)
+        if: matrix.platform == 'macos'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: Nai_Agent_mac
+          name: "Nai Agent for Mac"
+          files: |
+            release/*.dmg
+            release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
